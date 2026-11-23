@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Shattered Vales first-login setup
+Comment=Installs per-user tools such as Claude Code
+Exec=/usr/libexec/shatteredvales/first-login.sh
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

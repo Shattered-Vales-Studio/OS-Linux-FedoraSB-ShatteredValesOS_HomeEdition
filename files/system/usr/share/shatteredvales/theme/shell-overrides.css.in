@@ -1,0 +1,130 @@
+/*
+ * Brand overrides appended to GNOME Shell's built-in stylesheets.
+ * These affect the login screen (GDM) and the lock screen, which never load
+ * user themes. Selectors follow upstream gnome-shell; re-check them on each
+ * Fedora major upgrade because GNOME renames classes without notice.
+ *
+ * St (the shell toolkit) cannot clip a gradient to text, so the website's
+ * gold foil appears only in the rendered artwork. Text and controls use the
+ * flat gold, which keeps every pairing at WCAG AAA (7:1 or better) against
+ * the brand background:
+ *   @BRAND_ACCENT@ on @BRAND_BG@   8.3:1    @BRAND_BG@ on @BRAND_ACCENT@   8.3:1
+ *   @BRAND_TEXT@ on @BRAND_BG@    19.2:1    @BRAND_TEXT_MUTED@ on @BRAND_BG@  8.1:1
+ */
+
+/* Login and lock background and typography */
+#lockDialogGroup {
+  background-color: @BRAND_BG@;
+}
+
+.login-dialog,
+.unlock-dialog {
+  font-family: "@BRAND_FONT_FAMILY@", sans-serif;
+  color: @BRAND_TEXT@;
+}
+
+.login-dialog-button.default,
+.unlock-dialog .button.default {
+  background-color: @BRAND_ACCENT@;
+  color: @BRAND_BG@;
+}
+
+.login-dialog-button.default:hover,
+.login-dialog-button.default:focus,
+.unlock-dialog .button.default:hover,
+.unlock-dialog .button.default:focus {
+  background-color: @BRAND_ACCENT_LIGHT@;
+  color: @BRAND_BG@;
+}
+
+.login-dialog StEntry,
+.unlock-dialog StEntry {
+  border-color: @BRAND_BORDER@;
+}
+
+.login-dialog StEntry:focus,
+.unlock-dialog StEntry:focus {
+  border-color: @BRAND_ACCENT@;
+}
+
+/*
+ * Lock screen: logo and company name rendered as one image above the clock.
+ * The header is drawn as the clock container's background so it stays
+ * centered with the clock at every resolution and scale.
+ *
+ * St accepts only pixel lengths for background-position (keywords such as
+ * "center top" are ignored) and otherwise centers the image on the widget.
+ * So the container gets a fixed min-height, and the PNG is a canvas of that
+ * same size with the 480x220 header at its top and transparency below:
+ * centered, it lines up with the container's top edge. padding-top pushes
+ * the time below the header. min-height leaves room for the time, date and
+ * hint, and puts the header's top 460px above the screen's centre and the
+ * time's top 80px below it (tuned on a 1920x1200 logical screen). Screens
+ * under about 950 logical pixels tall clip the top of the header. Keep
+ * min-height, background-size and the renderer's canvas (2x: 960x1840) in
+ * step.
+ */
+.unlock-dialog-clock {
+  padding-top: 540px;
+  min-height: 920px;
+  background-image: url("file:///usr/share/shatteredvales/lockscreen-header.png");
+  background-size: 480px 920px;
+  background-repeat: no-repeat;
+}
+
+.unlock-dialog-clock-time {
+  font-family: "@BRAND_CLOCK_FONT_FAMILY@", serif;
+  color: @BRAND_ACCENT@;
+  font-weight: 700;
+  /* Mirrors the website's soft gold halo (drop-shadow 0 0 14px, 14%). */
+  text-shadow: 0 0 14px rgba(@BRAND_ACCENT_RGB@, 0.35);
+}
+
+.unlock-dialog-clock-date {
+  font-family: "@BRAND_FONT_FAMILY@", sans-serif;
+  color: @BRAND_TEXT_MUTED@;
+}
+
+.unlock-dialog-clock-hint {
+  color: @BRAND_TEXT_MUTED@;
+}
+
+/*
+ * Top bar: gold logo and a gold Cinzel clock, matching the lock screen.
+ *
+ * The Logo Menu icon is symbolic, so St tints it with `color`. Its button
+ * has no class of its own, so it keeps GNOME's white hover highlight; the
+ * logo is a graphic (WCAG 1.4.11, 3:1), and gold stays at 3.2:1 or better
+ * on the brightest highlight.
+ *
+ * GNOME draws the clock's hover and pressed highlights as a white inset
+ * shadow on the inner .clock label, which would drop gold text to 3.2:1.
+ * They are replaced with a gold glow, switching to the light gold when
+ * pressed, which keeps every state at AAA:
+ *   @BRAND_ACCENT@ on black 8.5:1, on 14% glow 7.3:1
+ *   @BRAND_ACCENT_LIGHT@ on 22% glow 9.8:1, on 26% glow 8.9:1
+ */
+#panel .menu-button {
+  color: @BRAND_ACCENT@;
+}
+
+#panel .panel-button.clock-display .clock {
+  font-family: "@BRAND_CLOCK_FONT_FAMILY@", serif;
+  color: @BRAND_ACCENT@;
+}
+
+#panel .panel-button.clock-display:focus .clock,
+#panel .panel-button.clock-display:hover .clock {
+  box-shadow: inset 0 0 0 100px rgba(@BRAND_ACCENT_RGB@, 0.14);
+}
+
+#panel .panel-button.clock-display:active .clock,
+#panel .panel-button.clock-display:checked .clock {
+  color: @BRAND_ACCENT_LIGHT@;
+  box-shadow: inset 0 0 0 100px rgba(@BRAND_ACCENT_RGB@, 0.22);
+}
+
+#panel .panel-button.clock-display:active .clock:hover,
+#panel .panel-button.clock-display:checked .clock:hover {
+  box-shadow: inset 0 0 0 100px rgba(@BRAND_ACCENT_RGB@, 0.26);
+}

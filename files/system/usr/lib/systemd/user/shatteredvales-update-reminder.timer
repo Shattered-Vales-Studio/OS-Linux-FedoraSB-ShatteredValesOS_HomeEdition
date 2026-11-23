@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily check for an OS update waiting on a restart
+
+[Timer]
+# First check an hour into the session, then daily during working time.
+OnStartupSec=1h
+OnCalendar=*-*-* 10:00
+Persistent=false
+
+[Install]
+WantedBy=timers.target

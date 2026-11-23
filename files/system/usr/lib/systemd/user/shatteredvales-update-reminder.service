@@ -1,0 +1,8 @@
+[Unit]
+Description=Remind the user to restart for a waiting OS update
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/shatteredvales/update-reminder.sh

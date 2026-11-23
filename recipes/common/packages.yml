@@ -1,0 +1,27 @@
+---
+# System-level software layered into the image. Anything here updates with
+# the image itself, so it must not be a tool that self-updates in place.
+modules:
+  - type: dnf
+    repos:
+      files:
+        - https://pkgs.tailscale.com/stable/fedora/tailscale.repo
+    install:
+      packages:
+        # Remote help. Installed but never signed in: whoever looks after a
+        # machine signs it in to their own tailnet (see the Remote Help
+        # document each account gets). tailscaled runs but does nothing
+        # until then.
+        - tailscale
+        # Desktop layout: native Fedora packages track the shipped GNOME
+        # version, so they break far less often than extensions.gnome.org builds
+        - gnome-shell-extension-dash-to-dock
+        - gnome-shell-extension-appindicator
+        # Family Setup is a small GTK 4 / libadwaita app; these are in the
+        # Silverblue base today and listed so a base change cannot drop them.
+        - python3-gobject
+        - libadwaita
+        # Used by sv-gpu-image, sv-update and the first-login script
+        - jq
+        - pciutils
+        - libnotify

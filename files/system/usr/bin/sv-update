@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+#
+# sv-update
+#
+# Purpose:
+#   Shows and applies OS and app updates in plain language, so nobody needs
+#   to know bootc, rpm-ostree or flatpak commands. The OS normally updates
+#   itself in the background and applies the update at the next restart;
+#   this tool shows what is waiting and lets the user act on it now.
+#
+# Usage:
+#   sv-update            Show the current image, any waiting update and
+#                        what it changes, then offer to restart.
+#   sv-update now        Download the newest image and app updates now,
+#                        then offer to restart.
+#   sv-update rollback   Boot the previous OS version at the next restart.
+#   Add --wait to any of these to keep the window open at the end; the
+#   System Update launcher uses it.
+#
+# Exit codes:
+#   0 on success, 1 on failure, 64 on bad usage.
+
+set -euo pipefail
+
+# say
+#   Prints a highlighted heading.
+#   Arguments: message words
+#   Returns: 0 always
+say() {
+    printf '\n\033[1;33m==>\033[0m \033[1m%s\033[0m\n' "$*"
+}
+
+# deployment_field
+#   Reads a field from the booted or staged deployment.
+#   Arguments: $1 "booted" or "staged", $2 jq field name
+#   Output: the value, or nothing if that deployment does not exist
+#   Returns: 0 always
+deployment_field() {
+    rpm-ostree status --json \
+        | jq -r --arg which "$1" --arg field "$2" \
+            '.deployments[] | select(.[$which] == true) | .[$field] // empty' \
+        | head -n1
+}
+
+# describe_image
+#   Prints the image reference, channel (tag) and build date of a deployment.
+#   Arguments: $1 "booted" or "staged"
+#   Returns: 0 always
+describe_image() {
+    local ref built
+    ref="$(deployment_field "$1" container-image-reference)"
+    built="$(deployment_field "$1" timestamp)"
+    echo "Image:    ${ref#*docker://}"
+    echo "Channel:  ${ref##*:}"
+    [[ -n "${built}" ]] && echo "Built:    $(date -d "@${built}" '+%A %d %B %Y, %H:%M')"
+}
+
+# offer_restart
+#   Asks whether to restart now when an update is staged.
+#   Arguments: none
+#   Returns: 0 always (unless the restart itself is started)
+offer_restart() {
+    [[ -n "$(deployment_field staged checksum)" ]] || return 0
+    local reply
+    read -r -p $'\nRestart now to apply the update? Save your work first. [y/N] ' reply
+    if [[ "${reply}" =~ ^[Yy] ]]; then
+        systemctl reboot
+    else
+        echo "It will apply automatically the next time you restart."
+    fi
+}
+
+# cmd_status
+#   Shows the running image and any staged update with its package changes.
+#   Arguments: none
+#   Returns: 0 always
+cmd_status() {
+    say "Running now"
+    describe_image booted
+    if [[ -z "$(deployment_field staged checksum)" ]]; then
+        say "No update is waiting"
+        echo "Updates download automatically in the background. To check now: sv-update now"
+        return 0
+    fi
+    say "Update ready (applies at the next restart)"
+    describe_image staged
+    say "What changes"
+    # With no arguments, db diff compares the booted and pending deployments.
+    rpm-ostree db diff 2>/dev/null | sed -n '/^Upgraded:/,$p' || true
+    offer_restart
+}
+
+# cmd_now
+#   Fetches and stages the newest OS image and updates every Flatpak.
+#   Arguments: none
+#   Returns: non-zero if the OS update fails
+cmd_now() {
+    say "Checking for an OS update (asks for your password)"
+    # rpm-ostree rather than bootc upgrade, which refuses to run when
+    # packages are layered on the deployment.
+    sudo rpm-ostree upgrade
+    say "Updating apps"
+    flatpak update --system -y --noninteractive || echo "System app updates failed; try again later."
+    flatpak update --user -y --noninteractive || true
+    cmd_status
+}
+
+# cmd_rollback
+#   Sets the previous deployment as the default for the next boot.
+#   Arguments: none
+#   Returns: rpm-ostree's exit status
+cmd_rollback() {
+    say "Going back to the previous OS version (asks for your password)"
+    sudo rpm-ostree rollback
+    offer_restart_rollback
+}
+
+# offer_restart_rollback
+#   Asks whether to restart into the previous version now.
+#   Arguments: none
+#   Returns: 0 always (unless the restart itself is started)
+offer_restart_rollback() {
+    local reply
+    read -r -p $'\nRestart now into the previous version? [y/N] ' reply
+    [[ "${reply}" =~ ^[Yy] ]] && systemctl reboot
+    echo "The previous version starts at the next restart."
+}
+
+# main
+#   Dispatches the subcommand and, with --wait, pauses before the window
+#   closes so a launcher's output can be read.
+#   Arguments: $1 subcommand (default: status), optional --wait
+#   Returns: the subcommand's status, or 64 on bad usage
+main() {
+    local cmd=status wait=0 arg status=0
+    for arg in "$@"; do
+        case "${arg}" in
+            --wait) wait=1 ;;
+            -h|--help|help) sed -n '/^# Usage:/,/^#$/p' "$0" | sed 's/^# \{0,3\}//'; exit 0 ;;
+            status|now|rollback) cmd="${arg}" ;;
+            *) echo "Usage: sv-update [now|rollback] [--wait]" >&2; exit 64 ;;
+        esac
+    done
+    case "${cmd}" in
+        status)   cmd_status || status=$? ;;
+        now)      cmd_now || status=$? ;;
+        rollback) cmd_rollback || status=$? ;;
+    esac
+    if (( wait )); then
+        read -r -p $'\nPress Enter to close.' _
+    fi
+    return "${status}"
+}
+
+main "$@"

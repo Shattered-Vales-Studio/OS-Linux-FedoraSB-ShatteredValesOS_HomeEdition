@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Family Setup
+GenericName=Add people to this computer
+Comment=Make an everyday account for each person and an administrator account for looking after the computer
+Exec=/usr/libexec/shatteredvales/family-setup
+Icon=shatteredvales-family-setup
+Terminal=false
+Categories=System;
+Keywords=family;people;user;users;account;accounts;administrator;add;
+StartupNotify=true

@@ -1,0 +1,13 @@
+[Unit]
+Description=Warn when the GPU does not match the installed Shattered Vales image
+After=local-fs.target
+ConditionPathExists=/run/ostree-booted
+
+[Service]
+Type=oneshot
+# Exit code 2 means "switch advised"; it is logged, not treated as a failure.
+ExecStart=/usr/bin/sv-gpu-image check
+SuccessExitStatus=2
+
+[Install]
+WantedBy=multi-user.target

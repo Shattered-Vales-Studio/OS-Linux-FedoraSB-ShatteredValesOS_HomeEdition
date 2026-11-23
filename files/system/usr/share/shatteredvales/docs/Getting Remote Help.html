@@ -1,0 +1,63 @@
+<!doctype html>
+<!--
+  Getting Remote Help: a plain-language guide copied into each person's
+  Documents folder at first login (first-login.sh, step remote-help-doc).
+  It opens in Firefox. Kept self-contained (no external assets) so it reads
+  the same offline.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting Remote Help</title>
+<style>
+  :root { color-scheme: dark light; }
+  body { font: 20px/1.6 Lato, "Adwaita Sans", sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1.25rem;
+         background: #050505; color: #f8f8f8; }
+  h1, h2 { font-family: Cinzel, serif; color: #c5a059; line-height: 1.25; }
+  a { color: #e0cba0; }
+  .box { border: 1px solid #222222; border-radius: 12px; padding: 0.5rem 1.25rem; background: #0a0a0a; }
+  ol li { margin-bottom: 0.6rem; }
+  code { font-size: 0.95em; background: #111111; padding: 0.1rem 0.35rem; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Getting Remote Help</h1>
+<p>This computer can let a family member or friend you trust help you over the
+internet, as if they were sitting next to you. It uses a free service called
+<strong>Tailscale</strong>, which is already installed. Nothing is shared until
+someone sets it up.</p>
+
+<div class="box">
+<h2>For the person being helped</h2>
+<ol>
+  <li>Ask your helper to follow the steps below. They will need about ten minutes
+      with you, in person or on the phone, the first time.</li>
+  <li>Only let someone you trust do this. Once it is set up, they can reach this
+      computer whenever it is switched on.</li>
+</ol>
+</div>
+
+<h2>For the helper</h2>
+<ol>
+  <li>Make a free Tailscale account at
+      <a href="https://login.tailscale.com/start">login.tailscale.com/start</a>,
+      and install Tailscale on your own computer from
+      <a href="https://tailscale.com/download">tailscale.com/download</a>.</li>
+  <li>On this computer, open <strong>Terminal</strong> from the app list and type:
+      <br><code>sudo tailscale up --ssh</code><br>
+      It asks for this computer's administrator password, then shows a web address.
+      Open that address and sign in with <em>your</em> Tailscale account.</li>
+  <li>From your own computer you can now connect with
+      <code>ssh &lt;their username&gt;@&lt;this computer's name&gt;</code>, or see it in
+      your Tailscale admin console. Tailscale's guide:
+      <a href="https://tailscale.com/kb/1017/install">Install Tailscale</a>.</li>
+  <li>To stop remote help at any time: <code>sudo tailscale down</code>
+      (pause) or <code>sudo tailscale logout</code> (remove).</li>
+</ol>
+
+<p>Updates install themselves. If the computer asks to restart, save your work
+and restart. If something stops working, the System Update app can go back to
+the previous version.</p>
+</body>
+</html>

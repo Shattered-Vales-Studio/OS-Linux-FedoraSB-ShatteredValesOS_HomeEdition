@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=System Update
+GenericName=Update the system and apps
+Comment=Download the newest Shattered Vales OS and app updates now, then restart when you are ready
+Exec=sv-update now --wait
+Icon=shatteredvales-update
+Terminal=true
+Categories=System;
+Keywords=update;upgrade;os;system;restart;rollback;
+Actions=status;rollback;
+
+[Desktop Action status]
+Name=Show Waiting Update
+Exec=sv-update --wait
+
+[Desktop Action rollback]
+Name=Go Back to Previous Version
+Exec=sv-update rollback --wait

@@ -1,0 +1,13 @@
+# Craft App Suite apps installed for every user at first login by
+# first-login.sh (step artcraft-apps), as user Flatpak bundles from each
+# app's latest GitHub release, exactly as ArtCraft Launcher installs them on
+# image-based systems. The launcher detects them and manages their updates.
+# Home Edition carries the office apps and the photo editors; the rest of
+# the suite is one click away in ArtCraft Launcher.
+# Format: <id> <flatpak app id> <GitHub repo>
+wordcraft       ai.storyteller.wordcraft         storytold/wordcraft
+gridcraft       ai.storyteller.gridcraft         storytold/gridcraft
+deckcraft       ai.storyteller.deckcraft         storytold/deckcraft
+pdfcraft        ai.storyteller.pdfcraft          storytold/pdfcraft
+photocraft      ai.storyteller.photocraft        storytold/photocraft
+lightcraft      ai.storyteller.lightcraft        storytold/lightcraft

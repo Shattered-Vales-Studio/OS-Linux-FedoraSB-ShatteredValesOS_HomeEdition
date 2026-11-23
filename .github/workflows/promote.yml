@@ -1,0 +1,86 @@
+name: promote-images
+
+# Release channels:
+#   :testing  every build from main (nightly and on push). Canary machines
+#             run this tag so problems surface on one or two machines first.
+#   :latest   what every other machine runs. This workflow moves it to
+#             the current :testing image weekly, or on demand.
+#   :stable-YYYYMMDD  a permanent tag for every promotion, for rollbacks.
+#
+# Promotion retags the existing, already signed image by digest; nothing is
+# rebuilt, so the cosign signature stays valid. The signature is verified
+# before anything is promoted.
+#
+# Hold promotions: set the repository variable PAUSE_PROMOTION to "true"
+# (Settings > Secrets and variables > Actions > Variables). Scheduled runs
+# then skip; manual runs still work.
+#
+# Roll back: run this workflow manually with source set to an older
+# stable-YYYYMMDD tag.
+
+on:
+  schedule:
+    # Tuesdays 16:20 UTC (morning in Oregon), after a full week on :testing.
+    - cron: "20 16 * * 2"
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Tag to promote to :latest (testing, or stable-YYYYMMDD to roll back)"
+        required: true
+        default: testing
+
+concurrency:
+  group: promote-images
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' || vars.PAUSE_PROMOTION != 'true'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - shatteredvales-os-home
+          - shatteredvales-os-home-nvidia
+    env:
+      SOURCE_TAG: ${{ github.event.inputs.source || 'testing' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: sigstore/cosign-installer@v4
+
+      - uses: imjasonh/setup-crane@v0.7
+
+      - name: Resolve image
+        id: resolve
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.image }}"
+          digest="$(crane digest "${repo}:${SOURCE_TAG}")"
+          echo "repo=${repo}" >> "${GITHUB_OUTPUT}"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          echo "Promoting ${repo}:${SOURCE_TAG} (${digest})"
+
+      - name: Verify signature
+        run: cosign verify --key cosign.pub "${{ steps.resolve.outputs.repo }}@${{ steps.resolve.outputs.digest }}"
+
+      - name: Tag latest and stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "${GH_TOKEN}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+          ref="${{ steps.resolve.outputs.repo }}@${{ steps.resolve.outputs.digest }}"
+          crane tag "${ref}" latest
+          # A rollback re-promotes an existing stable tag; only new
+          # promotions from testing get a new dated tag.
+          if [[ "${SOURCE_TAG}" == testing ]]; then
+            crane tag "${ref}" "stable-$(date -u +%Y%m%d)"
+          fi
+          echo "### ${{ matrix.image }}: ${SOURCE_TAG} -> latest" >> "${GITHUB_STEP_SUMMARY}"
+          echo "\`${{ steps.resolve.outputs.digest }}\`" >> "${GITHUB_STEP_SUMMARY}"
