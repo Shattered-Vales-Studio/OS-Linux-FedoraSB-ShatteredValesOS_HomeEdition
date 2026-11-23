@@ -59,6 +59,16 @@ you can set it for them. Administrators get a red logo picture and everyone
 else a gold one, so the sign-in screen shows who is who. Open **Family
 Setup** from the app list at any time to add people later.
 
+## Shared folders on other computers
+
+Windows PCs and network drives (NAS) on the home network show up under
+**Network** in Files. To open one directly, choose **Other Locations** in
+Files, type its address, such as `smb://family-pc/Photos`, and tick
+**Remember forever** so the password is saved. To pin shares in everyone's
+sidebar, list them in `/etc/shatteredvales/network-shares` (one per line,
+`\\pc\share` or `smb://` form, with an optional name); they appear at the
+next sign-in. Dolphin is installed too, for anyone who prefers it.
+
 ## Remote help
 
 Tailscale is installed but switched off. Nothing is shared until someone

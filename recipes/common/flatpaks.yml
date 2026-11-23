@@ -26,5 +26,8 @@ modules:
           - org.gnome.SimpleScan
           # Plays nearly every video and disc format.
           - org.videolan.VLC
+          # KDE's file manager, for people used to it on Windows shares;
+          # Files remains the default.
+          - org.kde.dolphin
           # Password manager, for the family's passwords across devices.
           - com.bitwarden.desktop

@@ -143,25 +143,64 @@ is_admin() {
     id -nG | tr ' ' '\n' | grep -qx wheel
 }
 
-# step_user_icon
-#   Sets the logo as the account picture when the person has none or only
-#   GNOME's generated initials avatar: red for administrators, gold for
-#   everyone else, so the login screen shows at a glance which accounts
-#   can change the computer. Pictures people chose are kept. AccountsService
-#   copies the file, so it can be changed later in Settings > Users.
+# sync_user_icon
+#   Gives the account the studio logo as its picture when it has none, only
+#   GNOME's generated initials avatar, or one of the studio's own defaults:
+#   red for administrators, gold for everyone else, so the login screen
+#   shows which accounts can change the computer. Runs at every login so the
+#   colour follows the account when it is made or unmade an administrator.
+#   Pictures the user chose are never replaced.
+#   Arguments: none
 #   Returns: 0 when the picture is set or kept, 1 if setting it failed
-step_user_icon() {
-    local user_path icon picture=/usr/share/shatteredvales/avatar.png
+sync_user_icon() {
+    local user_path icon default=/usr/share/shatteredvales/avatar.png
+    local admin=/usr/share/shatteredvales/avatar-admin.png picture
     user_path="$(busctl --system call org.freedesktop.Accounts /org/freedesktop/Accounts \
         org.freedesktop.Accounts FindUserById x "$(id -u)" | cut -d'"' -f2)" || return 1
     icon="$(busctl --system get-property org.freedesktop.Accounts "${user_path}" \
         org.freedesktop.Accounts.User IconFile | cut -d'"' -f2)" || return 1
-    if [[ -s "${icon}" ]] && ! is_generated_avatar "${icon}"; then
-        return 0
+    picture="${default}"
+    is_admin && picture="${admin}"
+    # AccountsService stores a copy, so the current picture is compared by
+    # content with the defaults rather than by path.
+    if [[ -s "${icon}" ]]; then
+        cmp -s "${icon}" "${picture}" && return 0
+        if ! cmp -s "${icon}" "${default}" && ! cmp -s "${icon}" "${admin}" \
+            && ! is_generated_avatar "${icon}"; then
+            return 0
+        fi
     fi
-    is_admin && picture=/usr/share/shatteredvales/avatar-admin.png
     busctl --system call org.freedesktop.Accounts "${user_path}" \
-        org.freedesktop.Accounts.User SetIconFile s "${picture}"
+        org.freedesktop.Accounts.User SetIconFile s "${picture}" >/dev/null
+}
+
+# sync_share_bookmarks
+#   Adds the shares listed in /etc/shatteredvales/network-shares to the
+#   Files sidebar. Runs at every login rather than once, so shares an admin
+#   adds later reach existing users. Windows paths (\\server\share) are
+#   converted to smb:// addresses; bookmarks already present are left alone.
+#   Arguments: none
+#   Returns: 0 always
+sync_share_bookmarks() {
+    local list=/etc/shatteredvales/network-shares
+    local bookmarks="${XDG_CONFIG_HOME:-${HOME}/.config}/gtk-3.0/bookmarks"
+    local address name url
+    [[ -r "${list}" ]] || return 0
+    mkdir -p "$(dirname "${bookmarks}")"
+    touch "${bookmarks}"
+    while read -r address name; do
+        [[ -z "${address}" || "${address}" == \#* ]] && continue
+        if [[ "${address}" == \\\\* ]]; then
+            url="smb://$(sed -e 's#^\\\\##' -e 's#\\#/#g' <<<"${address}")"
+        else
+            url="${address}"
+        fi
+        # Compared as a whole first field, since addresses contain dots and
+        # other characters grep would treat as a pattern.
+        awk -v u="${url}" '$1 == u {found = 1} END {exit !found}' "${bookmarks}" && continue
+        echo "${url}${name:+ ${name}}" >> "${bookmarks}"
+        echo "Added share bookmark ${url}"
+    done < "${list}"
 }
 
 # step_remote_help_doc
@@ -202,7 +241,8 @@ main() {
 
     local failed=0
     open_welcome
-    run_step user-icon-v1 step_user_icon || failed=1
+    sync_user_icon || failed=1
+    sync_share_bookmarks
     run_step remote-help-doc-v1 step_remote_help_doc || failed=1
     # Last, because it downloads several hundred MB.
     run_step artcraft-apps-v1 step_artcraft_apps || failed=1

@@ -29,6 +29,8 @@ readonly FORBIDDEN_RPMS=(
 
 readonly REQUIRED_PATHS=(
     /usr/bin/artcraft-launcher
+    /etc/firewalld/zones/FedoraWorkstation.xml
+    /etc/shatteredvales/network-shares
     /usr/share/fonts/google-fonts/Cinzel
     /usr/share/fonts/google-fonts/Lato
     "/usr/share/fonts/google-fonts/JetBrains Mono"
