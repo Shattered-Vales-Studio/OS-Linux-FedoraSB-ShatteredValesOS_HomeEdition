@@ -12,6 +12,10 @@ x-scheme-handler/https=org.mozilla.firefox.desktop;
 text/html=org.mozilla.firefox.desktop;
 application/xhtml+xml=org.mozilla.firefox.desktop;
 
+# Email links open Thunderbird.
+x-scheme-handler/mailto=net.thunderbird.Thunderbird.desktop;
+message/rfc822=net.thunderbird.Thunderbird.desktop;
+
 # Office documents: WordCraft, GridCraft and DeckCraft; PDFs in PdfCraft
 # with GNOME Papers as the fallback.
 application/vnd.openxmlformats-officedocument.wordprocessingml.document=ai.storyteller.wordcraft.desktop;

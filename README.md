@@ -32,7 +32,8 @@ Snapdragon models are not supported yet.
   suite.
 - **Everyday apps:** photo viewer, video player (and VLC for everything
   else), music player, text editor, calculator, calendar, clocks, weather,
-  camera, document scanner, archive manager, and Bitwarden for passwords.
+  camera, document scanner, archive manager, Thunderbird for email, and
+  Bitwarden for passwords.
 - **More apps** are one click away in **Software**.
 - **Simple by design:** one app list with no folders, a short dock at the
   bottom (Firefox, Files, PhotoCraft, WordCraft, VLC, Settings, System

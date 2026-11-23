@@ -14,7 +14,7 @@
 set -euo pipefail
 
 readonly REQUIRED_RPMS=(
-    tailscale firefox nano python3-gobject libadwaita openssl
+    tailscale firefox thunderbird nano python3-gobject libadwaita openssl
     gnome-shell-extension-dash-to-dock gnome-shell-extension-appindicator
     jq pciutils libnotify
 )
@@ -23,7 +23,7 @@ readonly REQUIRED_RPMS=(
 # machine: each would bring updates, services or attack surface nobody at
 # home needs.
 readonly FORBIDDEN_RPMS=(
-    docker-ce code unityhub claude-desktop-unofficial thunderbird
+    docker-ce code unityhub claude-desktop-unofficial
     nodejs26 dotnet-sdk-10.0 golang virt-manager
 )
 

@@ -141,22 +141,23 @@ SVG
 
     # wordmark
     #   Renders the two-line name in uppercase Cinzel Bold with the site's
-    #   0.1em letter spacing, both lines at the same size as on the site.
+    #   0.1em letter spacing: "SHATTERED VALES OS" in the gold foil, and
+    #   "HOME EDITION" below it in the edition blue (10.4:1 on the black
+    #   lock and boot backgrounds), the same pairing as Settings > About.
     #   Arguments: $1 point size, $2 output PNG
     #   Returns: 0 on success
     wordmark() {
-        local pt="$1" kern line i
+        local pt="$1" kern
         kern="$(awk -v p="${pt}" 'BEGIN { printf "%.1f", p * 0.1 }')"
-        i=0
-        for line in "${BRAND_NAME_LINE1}" "${BRAND_NAME_LINE2}"; do
-            magick -background none -fill white -font "${BRAND_DISPLAY_FONT_FILE}" \
-                -pointsize "${pt}" -kerning "${kern}" label:"${line^^}" -trim +repage \
-                "${tmp}/wm-line${i}.png"
-            i=$((i + 1))
-        done
+        magick -background none -fill white -font "${BRAND_DISPLAY_FONT_FILE}" \
+            -pointsize "${pt}" -kerning "${kern}" label:"${BRAND_NAME_LINE1^^}" -trim +repage \
+            "${tmp}/wm-line0-white.png"
+        foilify "${tmp}/wm-line0-white.png" "${tmp}/wm-line0.png"
+        magick -background none -fill "${BRAND_EDITION_BLUE_DARK}" -font "${BRAND_DISPLAY_FONT_FILE}" \
+            -pointsize "${pt}" -kerning "${kern}" label:"${BRAND_NAME_LINE2^^}" -trim +repage \
+            "${tmp}/wm-line1.png"
         magick "${tmp}/wm-line0.png" \( -size "1x$(( pt / 4 ))" xc:none \) "${tmp}/wm-line1.png" \
-            -background none -gravity center -append "${tmp}/wm-white.png"
-        foilify "${tmp}/wm-white.png" "$2"
+            -background none -gravity center -append "$2"
     }
 
     mkdir -p "${out}/usr/share/backgrounds/shatteredvales" \

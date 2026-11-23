@@ -13,6 +13,9 @@ modules:
         # document each account gets). tailscaled runs but does nothing
         # until then.
         - tailscale
+        # Mail, as in the studio edition, for families who use a desktop
+        # mail program rather than webmail.
+        - thunderbird
         # Desktop layout: native Fedora packages track the shipped GNOME
         # version, so they break far less often than extensions.gnome.org builds
         - gnome-shell-extension-dash-to-dock
