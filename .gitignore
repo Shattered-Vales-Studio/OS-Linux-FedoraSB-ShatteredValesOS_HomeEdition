@@ -1,0 +1,9 @@
+# Signing key must only ever live in the SIGNING_SECRET repository secret.
+cosign.key
+build/
+*.iso
+.DS_Store
+/.bluebuild-scripts_*
+# Scratch scripts the BlueBuild CLI writes next to generated Containerfiles.
+.bluebuild-scripts_*/
+__pycache__/
