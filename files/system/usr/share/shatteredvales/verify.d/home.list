@@ -1,0 +1,31 @@
+# Home Edition release gate, checked together with Core's core.list. Rule
+# format is described in /usr/libexec/shatteredvales/build/verify-image.sh.
+
+# Edition branding applied over Core's.
+path /etc/dconf/db/local.d/50-shatteredvales-home
+path /usr/share/icons/hicolor/scalable/apps/shatteredvales-family-setup.svg
+
+# Family Setup, Welcome, parental controls and per-person setup.
+rpm malcontent-control
+path /usr/libexec/shatteredvales/family-setup
+path /usr/share/applications/io.shatteredvales.FamilySetup.desktop
+path /usr/libexec/shatteredvales/first-login.d/50-home.sh
+path /usr/share/shatteredvales/docs/Getting Remote Help.html
+
+# Managed bookmarks (Streaming folder) in Firefox and Chromium.
+path /etc/chromium/policies/managed/shatteredvales-bookmarks.json
+
+# Studio developer tooling must never reach a family machine: each would
+# bring updates, services or attack surface nobody at home needs. Home
+# keeps a flat, phone-like app grid and no SSH server (remote help goes
+# through Tailscale SSH).
+forbid-rpm docker-ce
+forbid-rpm code
+forbid-rpm unityhub
+forbid-rpm claude-desktop-unofficial
+forbid-rpm nodejs26
+forbid-rpm dotnet-sdk-10.0
+forbid-rpm golang
+forbid-rpm virt-manager
+forbid-path /etc/dconf/db/local.d/20-shatteredvales-app-folders
+service-disabled sshd.service

@@ -1,8 +1,9 @@
 ---
 # Signing must stay last among content-changing modules so the published
-# signature policy matches what machines verify against.
+# signature policy matches what machines verify against. Core's release
+# gate checks Core's list and Home's (verify.d/home.list) together.
 modules:
   - type: signing
   - type: script
-    scripts:
-      - verify-image.sh
+    snippets:
+      - /usr/libexec/shatteredvales/build/verify-image.sh

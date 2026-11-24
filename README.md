@@ -7,7 +7,11 @@ can always go back), and lets a family member help over the internet when
 asked.
 
 Built nightly by GitHub Actions with [BlueBuild](https://blue-build.org)
-and signed with cosign. Anyone is welcome to use it.
+and signed with cosign. Anyone is welcome to use it. Home Edition is built
+on [Shattered Vales OS Core Edition](https://github.com/Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS_CoreEdition),
+which provides the apps, look, updates and support tools every edition
+shares; this repository adds Family Setup, the Welcome window, the
+Streaming bookmarks and Home's blue edition branding.
 
 | Image | For |
 |---|---|
@@ -117,12 +121,12 @@ No reinstall needed: accounts, files and Flatpak apps all stay. In a
 terminal:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS_HomeEdition/main/sv-migrate.sh
-bash sv-migrate.sh
+curl -fsSLO https://raw.githubusercontent.com/Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS_CoreEdition/main/sv-migrate.sh
+bash sv-migrate.sh --edition home
 ```
 
-(`wget https://raw.githubusercontent.com/Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS_HomeEdition/main/sv-migrate.sh`
-works too.) The script picks the right image for the graphics card, removes
+(`wget` with the same address works too; the script lives in Core Edition
+and moves a machine onto any edition.) The script picks the right image for the graphics card, removes
 add-on packages that would clash (such as RPM Fusion's NVIDIA driver),
 shows the plan and asks before changing anything. Add `--dry-run` to only
 see the plan. After the restart the computer switches itself to the
@@ -158,21 +162,22 @@ tag to roll every machine back.
 ## Keeping up with Fedora
 
 - **Updates within a release** are automatic: nightly builds start from
-  BlueBuild's base images, which pick up Fedora's updates daily, and the
-  weekly promotion moves them to `:latest`. Family computers install them
-  in the background and apply them at the next restart.
-- **New Fedora releases** (every April and October): the *fedora-release*
-  workflow checks every Monday. When Fedora N+1 is released and the base
-  images publish it, it pushes a `fedora-<N+1>` branch with the version
-  bumps and opens an issue with the pull request link and a test
-  checklist. Nothing moves to a new release without someone testing it.
+  Core Edition's promoted image, which picks up Fedora's updates daily, and
+  the weekly promotion moves them to `:latest`. Family computers install
+  them in the background and apply them at the next restart.
+- **Changes from Core** (new shared apps, fixes, branding) reach Home after
+  Core's own canary week: Core's promotion, then Home's next nightly build
+  puts them on Home's `:testing`, and Home's promotion on `:latest`.
+- **New Fedora releases** (every April and October) start in Core Edition,
+  which tests and promotes them first; Home follows automatically at its
+  next build after that.
 - **GitHub Actions** used by the workflows are kept current by Dependabot.
 
 ## Developing
 
 See [CLAUDE.md](CLAUDE.md) for how the image is put together and the
 rules for changing it, and [branding/README.md](branding/README.md) for the
-artwork. Verify a pulled image with the committed key:
+artwork, which is rendered with Core Edition's renderer (`just branding`). Verify a pulled image with the committed key:
 
 ```bash
 cosign verify --key cosign.pub ghcr.io/shattered-vales-studio/shatteredvales-os-home:latest

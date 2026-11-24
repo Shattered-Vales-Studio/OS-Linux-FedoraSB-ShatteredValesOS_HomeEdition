@@ -14,7 +14,7 @@ bluebuild := if `command -v bluebuild || true` != "" { "bluebuild" } else { "doc
 default:
     @just --list
 
-# Render all artwork from branding/ into files/system.
+# Render the edition's artwork with Core's renderer (CORE_REF=<branch> to pick one).
 branding:
     ./scripts/render-branding.sh
 
@@ -40,8 +40,8 @@ test variant="base":
 
 # Static checks on every shell script.
 lint:
-    shellcheck files/scripts/*.sh files/system/usr/libexec/shatteredvales/*.sh \
-        files/system/usr/bin/* scripts/*.sh tests/*.sh sv-migrate.sh
+    shellcheck files/system/usr/libexec/shatteredvales/first-login.d/*.sh \
+        files/system/usr/libexec/shatteredvales/verify.d/*.sh scripts/*.sh tests/*.sh
     python3 -c "import ast, sys; ast.parse(open(sys.argv[1]).read())" files/system/usr/libexec/shatteredvales/family-setup
 
 # Create the cosign key pair used to sign images (one time only).

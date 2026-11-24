@@ -1,6 +1,6 @@
 # Signing key must only ever live in the SIGNING_SECRET repository secret.
 cosign.key
-build/
+/build/
 *.iso
 .DS_Store
 /.bluebuild-scripts_*
