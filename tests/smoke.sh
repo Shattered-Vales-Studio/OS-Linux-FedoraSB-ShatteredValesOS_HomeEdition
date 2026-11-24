@@ -17,6 +17,18 @@ set -euo pipefail
 
 readonly IMAGE="${1:?usage: smoke.sh <image-ref>}"
 
+# Counts the branding marker in each GNOME Shell stylesheet; exits non-zero
+# unless every one has it exactly once.
+readonly THEME_CHECK='
+from gi.repository import Gio
+r = Gio.Resource.load("/usr/share/gnome-shell/gnome-shell-theme.gresource")
+p = "/org/gnome/shell/theme/"
+sheets = [n for n in r.enumerate_children(p, 0) if n.startswith("gnome-shell") and n.endswith(".css")]
+counts = {n: r.lookup_data(p + n, 0).get_data().count(b"Shattered Vales branding") for n in sheets}
+print(counts)
+raise SystemExit(0 if sheets and all(c == 1 for c in counts.values()) else 1)
+'
+
 # in_image
 #   Runs a shell snippet inside the image.
 #   Arguments: $1 command string
@@ -44,10 +56,20 @@ main() {
     echo "-> no developer tooling or app folders"
     in_image '! rpm -q docker-ce code nodejs26 >/dev/null 2>&1 && test ! -e /etc/dconf/db/local.d/20-shatteredvales-app-folders' || failed=1
 
-    echo "-> shell theme contains brand CSS"
-    # gresource tooling is removed from the image after patching, but the
-    # compiled resource stores the CSS uncompressed, so a binary grep works.
-    in_image 'grep -aq "Shattered Vales branding" /usr/share/gnome-shell/gnome-shell-theme.gresource' \
+    echo "-> every shell stylesheet carries the brand CSS exactly once"
+    # GNOME Shell's theme holds one stylesheet per variant (dark, light,
+    # high contrast) and each gets the branding. Exactly once, because
+    # editions re-run Core's patch and it must replace Core's branding
+    # rather than add a second copy. Read with GIO, since the gresource
+    # tooling is removed from the image after patching.
+    in_image "python3 -I -c '${THEME_CHECK}'" || failed=1
+
+    echo "-> Home's edition name replaced Core's in the banners and About logo"
+    in_image 'grep -q "Home Edition" /etc/issue.d/50-shatteredvales.issue && grep -q "Home Edition" /usr/lib/motd.d/50-shatteredvales && ! grep -rq "Core Edition" /etc/issue.d /usr/lib/motd.d' \
+        || failed=1
+
+    echo "-> Home's desktop defaults layered over Core's"
+    in_image 'test -s /etc/dconf/db/local.d/10-shatteredvales-desktop && test -s /etc/dconf/db/local.d/50-shatteredvales-home' \
         || failed=1
 
     echo "-> dconf defaults compiled with brand values"

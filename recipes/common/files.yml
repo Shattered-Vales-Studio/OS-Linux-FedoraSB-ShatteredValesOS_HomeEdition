@@ -1,6 +1,7 @@
 ---
-# Copies the static filesystem tree into the image. This runs first so that
-# repo definitions in /etc/yum.repos.d exist before the package step.
+# Copies Home Edition's files over Core's: its brand.env and artwork,
+# desktop defaults, first-login and release-gate drop-ins, Family Setup and
+# the browser policies.
 modules:
   - type: files
     files:

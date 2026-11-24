@@ -1,0 +1,15 @@
+# Home Edition desktop defaults, layered over Core's
+# 10-shatteredvales-desktop (dconf uses the value from the file that sorts
+# last). These are defaults, not locks: everyone keeps the ability to
+# change anything.
+
+[org/gnome/shell]
+# GNOME's own "Welcome / Take Tour" prompt is replaced by the Welcome window
+# from Family Setup. With both, GNOME's modal prompt covered ours and held
+# keyboard and mouse input until dismissed, which a first-time user would
+# not know to do. Marking it as already shown for any GNOME version keeps
+# it away; the Tour app stays in the app list.
+welcome-dialog-last-shown-version='999999'
+# A short dock of everyday apps, like a phone's home row. Mail is left out:
+# most families use webmail, and Thunderbird stays in the app grid.
+favorite-apps=['org.mozilla.firefox.desktop', 'org.gnome.Nautilus.desktop', 'ai.storyteller.photocraft.desktop', 'ai.storyteller.wordcraft.desktop', 'org.videolan.VLC.desktop', 'org.gnome.Settings.desktop', 'shatteredvales-update.desktop']

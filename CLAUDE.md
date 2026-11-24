@@ -3,10 +3,10 @@
 You are working on Shattered Vales OS **Home Edition**: a custom Fedora
 Atomic (Silverblue) image for family computers, built with BlueBuild,
 published to GHCR, and installed on home machines (mini-PCs, desktops,
-laptops). It shares its branding and update tooling with the studio
-edition (`Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS`) but
-has none of its developer tooling. Read this whole file before making
-changes.
+laptops). It is built on **Core Edition**
+(`Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS_CoreEdition`),
+which carries everything the editions share; read Core's CLAUDE.md too.
+Read this whole file before making changes.
 
 ## Who it is for
 
@@ -24,21 +24,35 @@ system feeling as simple as a phone:
 
 ## How the system works
 
+- Both recipes use Core's promoted image (`shatteredvales-os-core(-nvidia)`,
+  `image-version: latest`) as their base and only add or replace. Core's
+  changes and Fedora releases reach Home at its next build after Core is
+  promoted. **Anything that every edition should have belongs in Core**,
+  not here; this repository holds only what is Home-specific.
 - `recipes/recipe-base.yml` and `recipes/recipe-nvidia.yml` differ **only** in
   `name`, `description` and `base-image`. Every other change goes in
   `recipes/common/*.yml` so the two images can never drift.
-- `files/system/` is copied to `/` in the image. `files/scripts/` holds
-  build-time scripts run by `type: script` modules.
-- `branding/` is the single source for colors, fonts and artwork. Gold,
-  black and the fonts mirror tokens in the website's `assets/css/variables.css`;
-  the edition blue and the administrator red are edition-specific and their
-  contrast ratios are documented in `branding/brand.env`. Check contrast for
-  any new color pairing before using it (AAA 7:1 for text). `just branding`
-  renders PNGs into `files/system`. Never hand-edit those generated files;
-  change `branding/` and re-render.
-- Brand values reach the image through `/usr/share/shatteredvales/brand.env`
-  (a copy made by the renderer). Templates use `@BRAND_*@` placeholders that
-  build scripts substitute.
+- `files/system/` is copied over Core's tree. Home extends Core through its
+  drop-ins rather than copies of Core's files:
+  - desktop defaults: `etc/dconf/db/local.d/50-shatteredvales-home`
+    (overrides Core's `10-…`, the later name wins);
+  - per-person setup: `usr/libexec/shatteredvales/first-login.d/50-home.sh`
+    (registers `LOGIN_HOOKS`, `STEPS`, `LATE_STEPS` with Core's framework);
+  - release gate: `usr/share/shatteredvales/verify.d/home.list` and
+    `usr/libexec/shatteredvales/verify.d/*.sh`.
+  Firefox's policy and Chromium's managed bookmarks are whole files that
+  replace Core's.
+- The recipes re-run Core's build steps from the image
+  (`/usr/libexec/shatteredvales/build/apply-branding.sh`, then signing and
+  `verify-image.sh`), so Home's brand.env, artwork and dconf files apply.
+- `branding/` holds Home's `brand.env` (Core's with Home's edition block:
+  the edition blue, whose contrast ratios are documented there) and
+  `icons/*.glyph`. `just branding` renders with Core's renderer, fonts and
+  logo, writing only the edition-specific artwork into `files/system`.
+  Never hand-edit those generated files; change `branding/` and re-render.
+  Check contrast for any new colour pairing before using it (AAA 7:1).
+- Moving a Silverblue machine onto Home uses Core's
+  `sv-migrate.sh --edition home`.
 - Installer USB sticks are built by the separate `Shattered-Vales-Studio/OS-Installer`
   repository.
 
@@ -46,7 +60,7 @@ system feeling as simple as a phone:
 
 | Command | Purpose |
 |---|---|
-| `just branding` | Render artwork from `branding/` |
+| `just branding` | Render Home's artwork with Core's renderer (`CORE_REF=<branch>` optional) |
 | `just validate` | Schema-check recipes |
 | `just build [base\|nvidia]` | Build an image locally (linux/amd64) |
 | `just test [base\|nvidia]` | Smoke-test a local build |
@@ -71,23 +85,23 @@ system feeling as simple as a phone:
 ## Rules
 
 - Keep the two recipes identical apart from `name`, `description` and `base-image`.
-- No developer tooling, app grid folders or SSH server. `verify-image.sh`
-  fails the build if studio packages (`FORBIDDEN_RPMS`), an app-folders
-  dconf file or an enabled `sshd` appear.
+- No developer tooling, app grid folders or SSH server. The release gate
+  fails the build if studio packages, an app-folders dconf file or an
+  enabled `sshd` appear (`forbid-*` and `service-disabled` rules in
+  `verify.d/home.list`).
 - Tailscale is installed but never signed in by the image, the installer or
   any script. Whoever looks after a machine signs it in to their own
   tailnet (see `files/system/usr/share/shatteredvales/docs/Getting Remote Help.html`).
   Never commit Tailscale keys, password hashes or `cosign.key`.
-- Never bake self-updating tools into `/usr`; it is read-only. Per-person
-  setup goes in `files/system/usr/libexec/shatteredvales/first-login.sh` as
-  a versioned step (`run_step <name>-v1 <function>`). Bump the suffix to
-  force a step to run again for everyone.
-- `verify-image.sh` is the release gate. When adding software, add it to
-  `REQUIRED_RPMS` or `REQUIRED_PATHS` there.
-- GNOME Shell CSS selectors, extension settings and AccountsService's D-Bus
-  API can change between releases. On every Fedora major bump, re-check
-  `files/system/usr/share/shatteredvales/theme/shell-overrides.css.in`, the
-  dconf extension keys and Family Setup, and test on hardware before merging.
+- Never bake self-updating tools into `/usr`; it is read-only. Home's
+  per-person setup goes in `first-login.d/50-home.sh` as a versioned step
+  (`STEPS+=("<name>-v1 <function>")`). Bump the suffix to force a step to
+  run again for everyone.
+- The release gate is Core's `verify-image.sh`. When adding Home software or
+  files, add a rule to `verify.d/home.list`.
+- AccountsService's D-Bus API and GNOME's settings can change between
+  releases. When Core moves to a new Fedora release, re-check Family Setup
+  and Home's dconf keys on Core's `:testing` before Core is promoted.
 - Builds from `main` publish only `:testing` (`alt-tags` in both recipes).
   `:latest` moves only through `.github/workflows/promote.yml`, which
   verifies the signature and re-tags by digest. Never make CI push `:latest`
