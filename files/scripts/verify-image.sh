@@ -16,7 +16,7 @@ set -euo pipefail
 readonly REQUIRED_RPMS=(
     tailscale firefox thunderbird nano python3-gobject libadwaita openssl
     gnome-shell-extension-dash-to-dock gnome-shell-extension-appindicator
-    jq pciutils libnotify
+    jq pciutils libnotify fastfetch
 )
 
 # Developer tooling from the studio edition that must never reach a family
@@ -28,6 +28,12 @@ readonly FORBIDDEN_RPMS=(
 )
 
 readonly REQUIRED_PATHS=(
+    # Terminal colours, system summary logo and sign-in banners.
+    /usr/share/shatteredvales/ptyxis/ShatteredVales.palette
+    /usr/share/shatteredvales/fastfetch/logo.txt
+    /etc/xdg/fastfetch/config.jsonc
+    /etc/issue.d/50-shatteredvales.issue
+    /usr/lib/motd.d/50-shatteredvales
     /usr/bin/artcraft-launcher
     /etc/firewalld/zones/FedoraWorkstation.xml
     /etc/shatteredvales/network-shares
