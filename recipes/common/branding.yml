@@ -1,0 +1,12 @@
+---
+# Applies brand colors, fonts and artwork to boot, login, lock and desktop.
+# Order matters: the shell theme and dconf steps read brand.env, and the
+# Plymouth step regenerates the initramfs, so it runs after everything that
+# could otherwise invalidate it.
+modules:
+  - type: script
+    scripts:
+      - set-os-release.sh
+      - patch-shell-theme.sh
+      - dconf-update.sh
+      - build-plymouth.sh

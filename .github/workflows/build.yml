@@ -1,0 +1,41 @@
+name: build-images
+
+on:
+  # Nightly rebuilds pick up Fedora security updates and new upstream
+  # releases (ArtCraft, Bitwarden CLI) without anyone touching the repo.
+  schedule:
+    - cron: "20 9 * * *"
+  push:
+    branches: [main]
+    paths-ignore: ["**.md"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.recipe }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        recipe:
+          - recipe-base.yml
+          - recipe-nvidia.yml
+    steps:
+      - name: Build and push image
+        uses: blue-build/github-action@v1
+        with:
+          recipe: ${{ matrix.recipe }}
+          cosign_private_key: ${{ secrets.SIGNING_SECRET }}
+          registry_token: ${{ github.token }}
+          pr_event_number: ${{ github.event.number }}
+          # Desktop images exceed the default runner disk space.
+          maximize_build_space: true

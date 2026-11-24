@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# sv-gpu-image
+#
+# Purpose:
+#   Detects whether the machine has an NVIDIA GPU and whether it is running
+#   the matching Shattered Vales image, and can switch to the right one.
+#   The installer already picks the correct image; this covers machines that
+#   later gain or lose an NVIDIA card.
+#
+# Usage:
+#   sv-gpu-image status        Show detected GPU and current image
+#   sv-gpu-image check         Exit 0 if matched, 2 if a switch is advised
+#   sv-gpu-image apply         Switch to the matching image (reboot after)
+#
+# Exit codes:
+#   0 on success or a match, 1 when not booted from a container image,
+#   2 from check on a mismatch, 64 on bad usage.
+
+set -euo pipefail
+
+readonly BASE_SUFFIX="shatteredvales-os-home"
+readonly NVIDIA_SUFFIX="shatteredvales-os-home-nvidia"
+
+# has_nvidia_gpu
+#   Looks for a display-class PCI device (class 03xx) from vendor 10de.
+#   Returns: 0 if present, 1 otherwise
+has_nvidia_gpu() {
+    lspci -n | awk '$2 ~ /^03/ && $3 ~ /^10de:/ {found=1} END {exit !found}'
+}
+
+# current_image
+#   Prints the image reference the system booted from, without the ostree
+#   transport prefix. rpm-ostree is used rather than bootc because it works
+#   without root (sv-doctor runs this as the user) and still reports the
+#   image when packages are layered on top.
+#   Output: e.g. ghcr.io/shattered-vales-studio/shatteredvales-os:latest
+#   Returns: 1 if the system is not booted from a container image
+current_image() {
+    local ref
+    ref="$(rpm-ostree status --json \
+        | jq -r '.deployments[] | select(.booted) | ."container-image-reference" // empty')"
+    [[ -n "${ref}" ]] || return 1
+    # Strip "ostree-image-signed:docker://", "ostree-unverified-registry:" etc.
+    ref="${ref#*docker://}"
+    echo "${ref#ostree-unverified-registry:}"
+}
+
+# target_image
+#   Prints the image reference this hardware should be running, keeping the
+#   current registry and tag.
+#   Arguments: $1 current image reference
+target_image() {
+    local current="$1" registry tag name
+    registry="${current%/*}"
+    name="${current##*/}"
+    tag="latest"
+    if [[ "${name}" == *:* ]]; then
+        tag="${name##*:}"
+    fi
+    if has_nvidia_gpu; then
+        echo "${registry}/${NVIDIA_SUFFIX}:${tag}"
+    else
+        echo "${registry}/${BASE_SUFFIX}:${tag}"
+    fi
+}
+
+# main
+#   Dispatches the status, check and apply subcommands.
+#   Arguments: $1 subcommand (default: status)
+#   Returns: 0 on success, 2 from check on a mismatch, 64 on bad usage
+main() {
+    local cmd="${1:-status}" current target
+    current="$(current_image)" || { echo "Not booted from a container image." >&2; exit 1; }
+    target="$(target_image "${current}")"
+
+    case "${cmd}" in
+        status)
+            if has_nvidia_gpu; then echo "GPU: NVIDIA detected"; else echo "GPU: no NVIDIA device"; fi
+            echo "Running: ${current}"
+            echo "Matches: ${target}"
+            ;;
+        check)
+            if [[ "${current%:*}" == "${target%:*}" ]]; then exit 0; fi
+            echo "GPU/image mismatch: running ${current}, hardware needs ${target}." \
+                 "Run 'sudo sv-gpu-image apply' and reboot."
+            exit 2
+            ;;
+        apply)
+            if [[ "${current%:*}" == "${target%:*}" ]]; then
+                echo "Already on the matching image."
+                exit 0
+            fi
+            # rpm-ostree rather than bootc switch, which refuses to run when
+            # packages are layered on the deployment.
+            rpm-ostree rebase "ostree-image-signed:docker://${target}"
+            echo "Switched to ${target}. Reboot to finish."
+            ;;
+        *)
+            echo "Usage: sv-gpu-image [status|check|apply]" >&2
+            exit 64
+            ;;
+    esac
+}
+
+main "$@"

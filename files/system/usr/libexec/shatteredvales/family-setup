@@ -1,0 +1,783 @@
+#!/usr/bin/python3 -I
+"""Family Setup and Welcome for Shattered Vales OS Home Edition.
+
+Purpose:
+    Walks a family through the accounts a shared home computer needs, in
+    plain language: an everyday account for each person and a separate
+    administrator account for whoever looks after the computer. Accounts
+    can all be made in one sitting. The same window, opened with
+    --welcome, greets each person at their first login and offers larger
+    text; administrators then continue into Family Setup.
+
+    Accounts are created through AccountsService on the system bus, the
+    same service GNOME Settings uses, so polkit asks for an administrator
+    password once and every account shows up in Settings > System > Users.
+
+Inputs:
+    /usr/share/shatteredvales/avatar.png        Everyday account picture
+    /usr/share/shatteredvales/avatar-admin.png  Administrator account picture
+
+Usage:
+    family-setup              Family Setup (the app grid launcher)
+    family-setup --welcome    First-login Welcome (started by first-login.sh)
+    family-setup --self-test  Build and walk every page, change nothing, exit
+
+State:
+    ~/.local/state/shatteredvales/welcome.done is written when the Welcome
+    is finished or dismissed, so it is shown once per person.
+
+Exit codes:
+    0 on normal exit, 1 if the --self-test walk fails.
+"""
+
+import grp
+import os
+import pwd
+import re
+import subprocess
+import sys
+import unicodedata
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
+
+APP_ID = "io.shatteredvales.FamilySetup"
+ACCOUNTS_NAME = "org.freedesktop.Accounts"
+ACCOUNTS_PATH = "/org/freedesktop/Accounts"
+ACCOUNTS_IFACE = "org.freedesktop.Accounts"
+USER_IFACE = "org.freedesktop.Accounts.User"
+AVATAR = "/usr/share/shatteredvales/avatar.png"
+AVATAR_ADMIN = "/usr/share/shatteredvales/avatar-admin.png"
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "shatteredvales"
+WELCOME_DONE = STATE_DIR / "welcome.done"
+# AccountsService account types.
+STANDARD, ADMINISTRATOR = 0, 1
+# AccountsService password mode: the person chooses one at first sign-in.
+PASSWORD_SET_AT_LOGIN = 1
+# Long enough for someone to read and answer the polkit password prompt.
+CALL_TIMEOUT_MS = 10 * 60 * 1000
+USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+LARGE_TEXT = 1.25
+
+
+def human_accounts():
+    """List the people who have accounts on this computer.
+
+    Returns:
+        A list of (username, full name) tuples for regular accounts (UID
+        1000-59999 with a login shell), in UID order.
+    """
+    people = []
+    for entry in sorted(pwd.getpwall(), key=lambda e: e.pw_uid):
+        if 1000 <= entry.pw_uid < 60000 and not entry.pw_shell.endswith(("nologin", "false")):
+            people.append((entry.pw_name, entry.pw_gecos.split(",")[0] or entry.pw_name))
+    return people
+
+
+def is_admin(username):
+    """Tell whether an account is an administrator.
+
+    Args:
+        username: The account name.
+
+    Returns:
+        True when the account is in the wheel group.
+    """
+    try:
+        return username in grp.getgrnam("wheel").gr_mem
+    except KeyError:
+        return False
+
+
+def suggest_username(full_name, taken):
+    """Suggest a login name from a person's name.
+
+    Uses the first name in lowercase ASCII letters (accents folded), adding
+    a number when that name is already taken.
+
+    Args:
+        full_name: The name as typed, for example "Margaret Howard".
+        taken: Names that already exist.
+
+    Returns:
+        A valid, unused login name, or an empty string if nothing usable
+        could be derived.
+    """
+    first = full_name.strip().split(" ")[0] if full_name.strip() else ""
+    # Fold accents (É -> E) rather than dropping the letter.
+    ascii_first = unicodedata.normalize("NFKD", first).encode("ascii", "ignore").decode()
+    base = re.sub(r"[^a-z0-9]", "", ascii_first.lower())
+    if not base:
+        return ""
+    if base[0].isdigit():
+        base = "u" + base
+    base = base[:28]
+    candidate, n = base, 2
+    while candidate in taken:
+        candidate, n = f"{base}{n}", n + 1
+    return candidate
+
+
+def username_problem(username, taken):
+    """Explain why a login name cannot be used.
+
+    Args:
+        username: The proposed login name.
+        taken: Names that already exist.
+
+    Returns:
+        A short, plain-language problem description, or None if it is fine.
+    """
+    if not username:
+        return "Please choose a sign-in name."
+    if not USERNAME_RE.match(username):
+        return "Use lowercase letters and numbers only, starting with a letter."
+    if username in taken:
+        return f"There is already an account called {username}."
+    return None
+
+
+def password_problem(password, confirm):
+    """Explain why a password cannot be used.
+
+    Args:
+        password: The password typed.
+        confirm: The same password typed again.
+
+    Returns:
+        A short problem description, or None if it is fine.
+    """
+    if len(password) < 6:
+        return "Use at least 6 characters for the password."
+    if password != confirm:
+        return "The two passwords are different. Please type them again."
+    return None
+
+
+def hash_password(password):
+    """Hash a password the way /etc/shadow stores it (SHA-512 crypt).
+
+    AccountsService only accepts already-hashed passwords. Python no longer
+    ships the crypt module, so openssl does the hashing; the password goes
+    in on stdin so it never appears in the process list.
+
+    Args:
+        password: The plain password.
+
+    Returns:
+        The crypt(3) hash string.
+
+    Raises:
+        subprocess.CalledProcessError: if openssl fails.
+    """
+    result = subprocess.run(
+        ["openssl", "passwd", "-6", "-stdin"],
+        input=password, capture_output=True, text=True, check=True,
+    )
+    return result.stdout.strip()
+
+
+class Accounts:
+    """Asynchronous calls to AccountsService on the system bus.
+
+    Every call allows interactive authorization, so polkit shows its
+    administrator password prompt when needed instead of failing.
+    """
+
+    def __init__(self, dry_run=False):
+        """Connect to the system bus.
+
+        Args:
+            dry_run: When True, report success without changing anything
+                (used by --self-test).
+        """
+        self.dry_run = dry_run
+        self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+
+    def _call(self, path, iface, method, params, reply_type, done):
+        """Call an AccountsService method and pass the outcome to done.
+
+        Args:
+            path: D-Bus object path.
+            iface: Interface name.
+            method: Method name.
+            params: GLib.Variant tuple of arguments, or None.
+            reply_type: GLib.VariantType of the reply, or None.
+            done: Callback taking (reply or None, error message or None).
+        """
+        if self.dry_run:
+            def pretend():
+                done(GLib.Variant("(o)", ("/dry/run",)), None)
+                return False
+            GLib.idle_add(pretend)
+            return
+
+        def finished(bus, result):
+            try:
+                done(bus.call_finish(result), None)
+            except GLib.Error as error:
+                done(None, friendly_error(error))
+
+        self.bus.call(ACCOUNTS_NAME, path, iface, method, params, reply_type,
+                      Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+                      CALL_TIMEOUT_MS, None, finished)
+
+    def find_user(self, username):
+        """Look up an account's object path synchronously.
+
+        Args:
+            username: The account name.
+
+        Returns:
+            The object path, or None if AccountsService does not know it.
+        """
+        try:
+            reply = self.bus.call_sync(ACCOUNTS_NAME, ACCOUNTS_PATH, ACCOUNTS_IFACE,
+                                       "FindUserByName", GLib.Variant("(s)", (username,)),
+                                       GLib.VariantType("(o)"), Gio.DBusCallFlags.NONE, -1, None)
+            return reply.unpack()[0]
+        except GLib.Error:
+            return None
+
+    def create(self, username, full_name, admin, password, picture, done):
+        """Create an account and give it its password and picture.
+
+        Args:
+            username: Login name.
+            full_name: Name shown on the login screen.
+            admin: True for an administrator account.
+            password: Plain password, or None to let the person choose one
+                at their first sign-in.
+            picture: Path of the account picture.
+            done: Callback taking an error message, or None on success.
+        """
+        def picture_set(_reply, _error):
+            # A missing picture is cosmetic; first-login sets one anyway.
+            done(None)
+
+        def password_set(path, error):
+            if error:
+                done(error)
+                return
+            self._call(path, USER_IFACE, "SetIconFile", GLib.Variant("(s)", (picture,)),
+                       None, picture_set)
+
+        def created(reply, error):
+            if error:
+                done(error)
+                return
+            path = reply.unpack()[0]
+            if password is None:
+                method, args = "SetPasswordMode", GLib.Variant("(i)", (PASSWORD_SET_AT_LOGIN,))
+            else:
+                try:
+                    hashed = hash_password(password)
+                except (OSError, subprocess.CalledProcessError):
+                    done("The account was made, but its password could not be saved. "
+                         "Set it in Settings, System, Users.")
+                    return
+                method, args = "SetPassword", GLib.Variant("(ss)", (hashed, ""))
+            self._call(path, USER_IFACE, method, args, None,
+                       lambda _reply, err: password_set(path, err))
+
+        self._call(ACCOUNTS_PATH, ACCOUNTS_IFACE, "CreateUser",
+                   GLib.Variant("(ssi)", (username, full_name, ADMINISTRATOR if admin else STANDARD)),
+                   GLib.VariantType("(o)"), created)
+
+    def make_everyday(self, username, done):
+        """Turn an administrator account into an everyday account.
+
+        Also swaps the red administrator picture for the gold one when the
+        account still has the default picture.
+
+        Args:
+            username: The account to change.
+            done: Callback taking an error message, or None on success.
+        """
+        path = self.find_user(username) if not self.dry_run else "/dry/run"
+        if path is None:
+            done("That account could not be found.")
+            return
+
+        def changed(_reply, error):
+            if error:
+                done(error)
+                return
+            icon = Path("/var/lib/AccountsService/icons") / username
+            try:
+                default_picture = icon.read_bytes() == Path(AVATAR_ADMIN).read_bytes()
+            except OSError:
+                default_picture = False
+            if default_picture:
+                self._call(path, USER_IFACE, "SetIconFile", GLib.Variant("(s)", (AVATAR,)),
+                           None, lambda _r, _e: done(None))
+            else:
+                done(None)
+
+        self._call(path, USER_IFACE, "SetAccountType", GLib.Variant("(i)", (STANDARD,)), None, changed)
+
+
+def friendly_error(error):
+    """Turn a D-Bus error into a sentence a non-technical person can act on.
+
+    Args:
+        error: The GLib.Error from the call.
+
+    Returns:
+        A short message.
+    """
+    text = error.message or ""
+    if "NotAuthorized" in text or "not authorized" in text.lower() or "dismissed" in text.lower():
+        return "The administrator password was not entered, so nothing was changed."
+    if "already exists" in text.lower():
+        return "There is already an account with that sign-in name."
+    return f"Something went wrong: {text}"
+
+
+def mark_welcome_done():
+    """Record that this person has seen the Welcome window."""
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    WELCOME_DONE.touch()
+
+
+class SetupWindow(Adw.ApplicationWindow):
+    """The Welcome and Family Setup window.
+
+    Pages live in an Adw.NavigationView so the back button and keyboard
+    navigation behave like every other GNOME app.
+    """
+
+    def __init__(self, app, welcome, dry_run):
+        """Build the window and its first page.
+
+        Args:
+            app: The Adw.Application.
+            welcome: True to start with the per-person Welcome page.
+            dry_run: True to change nothing (self-test).
+        """
+        super().__init__(application=app, title="Family Setup", default_width=560, default_height=720)
+        self.welcome = welcome
+        self.accounts = Accounts(dry_run=dry_run)
+        self.me = pwd.getpwuid(os.getuid())
+        self.my_name = self.me.pw_gecos.split(",")[0] or self.me.pw_name
+        self.toasts = Adw.ToastOverlay()
+        self.nav = Adw.NavigationView()
+        self.toasts.set_child(self.nav)
+        self.set_content(self.toasts)
+        if welcome:
+            self.nav.add(self.page_welcome())
+        else:
+            self.nav.add(self.page_intro())
+
+    # Helpers -------------------------------------------------------------
+
+    def page(self, title, tag, body, header_end=None):
+        """Wrap content in a navigation page with a header bar.
+
+        Args:
+            title: Page title shown in the header.
+            tag: Navigation tag (used by the self-test).
+            body: The page's content widget.
+            header_end: Optional widget for the right side of the header.
+
+        Returns:
+            The Adw.NavigationPage.
+        """
+        header = Adw.HeaderBar()
+        if header_end is not None:
+            header.pack_end(header_end)
+        view = Adw.ToolbarView()
+        view.add_top_bar(header)
+        scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True)
+        clamp = Adw.Clamp(maximum_size=520, margin_top=12, margin_bottom=24, margin_start=16, margin_end=16)
+        clamp.set_child(body)
+        scroller.set_child(clamp)
+        view.set_content(scroller)
+        return Adw.NavigationPage(title=title, tag=tag, child=view)
+
+    def big_button(self, label, callback, style="suggested-action"):
+        """Make a large, centred, pill-shaped button.
+
+        Args:
+            label: Button text.
+            callback: Function called on click.
+            style: CSS class for the button's emphasis.
+
+        Returns:
+            The Gtk.Button.
+        """
+        button = Gtk.Button(label=label, halign=Gtk.Align.CENTER, margin_top=12)
+        button.add_css_class("pill")
+        button.add_css_class(style)
+        button.connect("clicked", lambda _b: callback())
+        return button
+
+    def status(self, icon, title, text):
+        """Make a status header: large icon, title and explanation.
+
+        Returns:
+            The Adw.StatusPage.
+        """
+        page = Adw.StatusPage(icon_name=icon, title=title, description=text)
+        page.add_css_class("compact")
+        return page
+
+    def toast(self, text):
+        """Show a short message at the bottom of the window."""
+        self.toasts.add_toast(Adw.Toast(title=text, timeout=6))
+
+    def column(self, *children):
+        """Stack widgets vertically with comfortable spacing.
+
+        Returns:
+            The Gtk.Box.
+        """
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        for child in children:
+            box.append(child)
+        return box
+
+    # Pages ---------------------------------------------------------------
+
+    def page_welcome(self):
+        """First-login greeting with a larger-text option.
+
+        Returns:
+            The navigation page.
+        """
+        first = self.my_name.split(" ")[0]
+        interface = Gio.Settings.new("org.gnome.desktop.interface")
+        large = Adw.SwitchRow(title="Larger text",
+                              subtitle="Makes words bigger everywhere on this account. "
+                                       "You can change this later in Settings, Accessibility.")
+        large.set_active(interface.get_double("text-scaling-factor") >= LARGE_TEXT)
+        large.connect("notify::active", lambda row, _p: interface.set_double(
+            "text-scaling-factor", LARGE_TEXT if row.get_active() else 1.0))
+        group = Adw.PreferencesGroup()
+        group.add(large)
+        tips = Adw.PreferencesGroup(title="Good to know")
+        for title, subtitle in (
+            ("Your apps", "The bar at the bottom of the screen holds your everyday apps. "
+                          "Click the dotted grid in it to see all of them."),
+            ("Movies and shows", "Open Firefox and use the Streaming folder on its bookmarks bar."),
+            ("Updates", "Updates install by themselves. Restart when you are asked to, "
+                        "or open System Update."),
+            ("Getting help", "Your Documents folder has a guide for letting a family member "
+                             "help you over the internet."),
+        ):
+            tips.add(Adw.ActionRow(title=title, subtitle=subtitle, subtitle_lines=0))
+        admin = is_admin(self.me.pw_name)
+        label = "Continue to Family Setup" if admin else "Start Using the Computer"
+        not_now = Gtk.Button(label="Not Now")
+        not_now.connect("clicked", lambda _b: self.finish())
+        body = self.column(
+            self.status("shatteredvales-logo", f"Welcome, {first}",
+                        "This is Shattered Vales OS Home Edition. Here are a few things to get you started."),
+            group, tips,
+            self.big_button(label, (lambda: self.nav.push(self.page_intro())) if admin else self.finish),
+        )
+        return self.page("Welcome", "welcome", body, header_end=not_now)
+
+    def page_intro(self):
+        """Explains the two kinds of account and asks who this account is for.
+
+        Returns:
+            The navigation page.
+        """
+        explain = Adw.PreferencesGroup(title="Two kinds of account")
+        explain.add(Adw.ActionRow(
+            title="Everyday account", subtitle_lines=0,
+            subtitle="For each person who uses the computer: web, email, photos, documents. "
+                     "Their files and settings stay their own."))
+        explain.add(Adw.ActionRow(
+            title="Administrator account", subtitle_lines=0,
+            subtitle="For the person who looks after the computer, such as a son or daughter. "
+                     "Needed to install apps, add people and fix problems. Keep its password safe."))
+        people = human_accounts()
+        children = [
+            self.status("shatteredvales-family-setup", "Set Up Accounts",
+                        "It is safest when everyone uses an everyday account, with one separate "
+                        "administrator account for looking after the computer."),
+            explain,
+        ]
+        if len(people) == 1 and is_admin(self.me.pw_name):
+            choice = Adw.PreferencesGroup(
+                title=f"Who is the account “{self.my_name}” for?",
+                description="You made this account when the computer was first switched on. "
+                            "It is an administrator account.")
+            keep = Adw.ActionRow(title="Someone who looks after this computer", activatable=True,
+                                 subtitle="Keep it as the administrator account, then add "
+                                          "everyday accounts for each person.", subtitle_lines=0)
+            keep.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
+            keep.connect("activated", lambda _r: self.nav.push(self.page_people()))
+            mine = Adw.ActionRow(title="Me, for everyday use", activatable=True,
+                                 subtitle="Make a separate administrator account now, and this "
+                                          "becomes your everyday account.", subtitle_lines=0)
+            mine.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
+            mine.connect("activated", lambda _r: self.nav.push(self.page_admin()))
+            choice.add(keep)
+            choice.add(mine)
+            children.append(choice)
+        else:
+            children.append(self.big_button("Continue", lambda: self.nav.push(self.page_people())))
+        return self.page("Family Setup", "intro", self.column(*children))
+
+    def page_admin(self):
+        """Creates the separate administrator account, then makes the current
+        account an everyday one.
+
+        Returns:
+            The navigation page.
+        """
+        taken = {name for name, _ in human_accounts()}
+        form = Adw.PreferencesGroup(
+            title="Administrator account",
+            description="Whoever looks after the computer signs in with this when something needs "
+                        "installing or fixing. Write the password down somewhere safe.")
+        name = Adw.EntryRow(title="Name shown on the sign-in screen", text="Administrator")
+        login = Adw.EntryRow(title="Sign-in name", text=suggest_username("admin", taken))
+        password = Adw.PasswordEntryRow(title="Password")
+        confirm = Adw.PasswordEntryRow(title="Type the password again")
+        for row in (name, login, password, confirm):
+            form.add(row)
+        problem = Gtk.Label(wrap=True, xalign=0, css_classes=["error"], visible=False)
+
+        def create():
+            issue = (username_problem(login.get_text(), taken)
+                     or password_problem(password.get_text(), confirm.get_text()))
+            if not name.get_text().strip():
+                issue = "Please type a name."
+            if issue:
+                problem.set_label(issue)
+                problem.set_visible(True)
+                return
+            problem.set_visible(False)
+            button.set_sensitive(False)
+
+            def demoted(error):
+                button.set_sensitive(True)
+                if error:
+                    problem.set_label(error)
+                    problem.set_visible(True)
+                    return
+                self.toast(f"Done. “{self.my_name}” becomes an everyday account next time you sign in.")
+                self.nav.push(self.page_people())
+
+            def created(error):
+                if error:
+                    button.set_sensitive(True)
+                    problem.set_label(error)
+                    problem.set_visible(True)
+                    return
+                self.accounts.make_everyday(self.me.pw_name, demoted)
+
+            self.accounts.create(login.get_text(), name.get_text().strip(), True,
+                                 password.get_text(), AVATAR_ADMIN, created)
+
+        button = self.big_button("Create Administrator Account", create)
+        body = self.column(
+            self.status("system-users-symbolic", "Make an Administrator Account",
+                        f"After this, “{self.my_name}” is your everyday account."),
+            form, problem, button)
+        return self.page("Administrator", "admin", body)
+
+    def page_people(self):
+        """Lists everyone's accounts and offers to add more.
+
+        Returns:
+            The navigation page.
+        """
+        group = Adw.PreferencesGroup(title="People on this computer")
+        self._fill_people(group)
+        add = Adw.ButtonRow(title="Add a Person", start_icon_name="list-add-symbolic")
+        add.connect("activated", lambda _r: self.nav.push(self.page_person(group)))
+        adder = Adw.PreferencesGroup()
+        adder.add(add)
+        body = self.column(
+            self.status("shatteredvales-family-setup", "Add Everyone",
+                        "Add an account for each person now, or come back any time: open "
+                        "Family Setup from the app list."),
+            group, adder,
+            self.big_button("Finish", lambda: self.nav.push(self.page_done())))
+        return self.page("People", "people", body)
+
+    def _fill_people(self, group):
+        """Shows one row per account in a group, replacing any old rows.
+
+        Args:
+            group: The Adw.PreferencesGroup to fill.
+        """
+        old = getattr(group, "_rows", [])
+        for row in old:
+            group.remove(row)
+        group._rows = []
+        for username, full_name in human_accounts():
+            role = "Administrator" if is_admin(username) else "Everyday account"
+            row = Adw.ActionRow(title=full_name, subtitle=f"{role} • signs in as {username}")
+            row.add_prefix(Gtk.Image(icon_name="avatar-default-symbolic"))
+            group.add(row)
+            group._rows.append(row)
+
+    def page_person(self, people_group):
+        """Form for adding one person.
+
+        Args:
+            people_group: The list to refresh after the account is made.
+
+        Returns:
+            The navigation page.
+        """
+        taken = {name for name, _ in human_accounts()}
+        about = Adw.PreferencesGroup(title="About this person")
+        name = Adw.EntryRow(title="Their name, as shown on the sign-in screen")
+        login = Adw.EntryRow(title="Sign-in name")
+        edited = {"login": False}
+
+        def name_changed(_row):
+            # Keep suggesting a sign-in name until the person types their own.
+            if not edited["login"]:
+                login.set_text(suggest_username(name.get_text(), taken))
+
+        name.connect("changed", name_changed)
+        login.connect("changed", lambda _r: edited.__setitem__("login", login.has_focus()))
+        admin = Adw.SwitchRow(title="Administrator",
+                              subtitle="Can install apps and change things for everyone. "
+                                       "Leave this off for everyday use.", subtitle_lines=0)
+        for row in (name, login, admin):
+            about.add(row)
+
+        secret = Adw.PreferencesGroup(title="Password")
+        now = Adw.SwitchRow(title="Set their password now", active=True, subtitle_lines=0,
+                            subtitle="Turn off to let them choose their own password the first "
+                                     "time they sign in.")
+        password = Adw.PasswordEntryRow(title="Password")
+        confirm = Adw.PasswordEntryRow(title="Type the password again")
+        for row in (now, password, confirm):
+            secret.add(row)
+        now.connect("notify::active", lambda row, _p: (password.set_visible(row.get_active()),
+                                                       confirm.set_visible(row.get_active())))
+        problem = Gtk.Label(wrap=True, xalign=0, css_classes=["error"], visible=False)
+
+        def add_person():
+            issue = username_problem(login.get_text(), taken)
+            if not name.get_text().strip():
+                issue = "Please type their name."
+            if not issue and now.get_active():
+                issue = password_problem(password.get_text(), confirm.get_text())
+            if issue:
+                problem.set_label(issue)
+                problem.set_visible(True)
+                return
+            problem.set_visible(False)
+            button.set_sensitive(False)
+
+            def created(error):
+                button.set_sensitive(True)
+                if error:
+                    problem.set_label(error)
+                    problem.set_visible(True)
+                    return
+                self._fill_people(people_group)
+                self.toast(f"Added {name.get_text().strip()}.")
+                self.nav.pop()
+
+            self.accounts.create(login.get_text(), name.get_text().strip(), admin.get_active(),
+                                 password.get_text() if now.get_active() else None,
+                                 AVATAR_ADMIN if admin.get_active() else AVATAR, created)
+
+        button = self.big_button("Add This Person", add_person)
+        body = self.column(about, secret, problem, button)
+        return self.page("Add a Person", "person", body)
+
+    def page_done(self):
+        """Closing tips.
+
+        Returns:
+            The navigation page.
+        """
+        tips = Adw.PreferencesGroup()
+        for title, subtitle in (
+            ("Switching people", "Each person signs in with their own name on the sign-in screen. "
+                                 "To change person, use the menu in the top-right corner."),
+            ("Changing accounts later", "Open Family Setup from the app list, or Settings, "
+                                        "System, Users."),
+            ("Remote help", "The guide in Documents explains how a family member can help "
+                            "over the internet."),
+        ):
+            tips.add(Adw.ActionRow(title=title, subtitle=subtitle, subtitle_lines=0))
+        body = self.column(
+            self.status("emblem-ok-symbolic", "All Set", "The computer is ready for everyone."),
+            tips, self.big_button("Close", self.finish))
+        return self.page("Done", "done", body)
+
+    def finish(self):
+        """Records the Welcome as seen and closes the window."""
+        if self.welcome:
+            mark_welcome_done()
+        self.close()
+
+
+class FamilySetupApp(Adw.Application):
+    """Application wrapper handling the command-line modes."""
+
+    def __init__(self, welcome, self_test):
+        """Create the application.
+
+        Args:
+            welcome: Start with the Welcome page.
+            self_test: Walk every page without changing anything, then exit.
+        """
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.NON_UNIQUE)
+        self.welcome = welcome
+        self.self_test = self_test
+        self.result = 0
+
+    def do_activate(self):
+        """Show the window, or run the self-test walk."""
+        window = SetupWindow(self, self.welcome or self.self_test, dry_run=self.self_test)
+        window.present()
+        if self.self_test:
+            GLib.timeout_add(300, self._walk, window)
+
+    def _walk(self, window):
+        """Push every page once to prove each one builds, then quit.
+
+        Args:
+            window: The SetupWindow.
+
+        Returns:
+            False, so the timeout runs once.
+        """
+        try:
+            group = Adw.PreferencesGroup()
+            for build in (window.page_intro, window.page_admin, window.page_people,
+                          lambda: window.page_person(group), window.page_done):
+                page = build()
+                window.nav.push(page)
+                print(f"built page: {page.get_tag()}")
+        except Exception as error:  # noqa: BLE001 - report any build failure
+            print(f"self-test failed: {error}", file=sys.stderr)
+            self.result = 1
+        self.quit()
+        return False
+
+
+def main():
+    """Parse the mode and run the app.
+
+    Returns:
+        The process exit code.
+    """
+    welcome = "--welcome" in sys.argv[1:]
+    self_test = "--self-test" in sys.argv[1:]
+    app = FamilySetupApp(welcome, self_test)
+    app.run([sys.argv[0]])
+    return app.result
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,7 @@
+---
+# Software that has no RPM repository and must be fetched from upstream
+# releases at build time. Each nightly build picks up the latest release.
+modules:
+  - type: script
+    scripts:
+      - install-artcraft-launcher.sh

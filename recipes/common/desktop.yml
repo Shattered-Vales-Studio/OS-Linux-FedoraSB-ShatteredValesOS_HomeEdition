@@ -1,0 +1,17 @@
+---
+# macOS-style layout. Extensions not packaged by Fedora come from
+# extensions.gnome.org and are matched to the image's GNOME version at build.
+modules:
+  - type: gnome-extensions
+    install:
+      - Logo Menu
+      - Just Perfection
+
+  - type: fonts
+    fonts:
+      google-fonts:
+        # Must match the BRAND_*_FONT_FAMILY values in branding/brand.env
+        # (the website's body, display and code fonts).
+        - Lato
+        - Cinzel
+        - JetBrains Mono

@@ -1,0 +1,33 @@
+---
+# Apps installed from Flathub on first boot. Flatpaks update on their own
+# and stay sandboxed. The list is kept short on purpose: Home Edition should
+# feel as simple as a phone, with more apps one click away in Software.
+modules:
+  - type: default-flatpaks
+    configurations:
+      - notify: true
+        scope: system
+        install:
+          # Core GNOME apps. Fedora's own installer adds these to Silverblue,
+          # but this image is installed from a container, so without them
+          # there would be no photo, PDF or video viewer, text editor or
+          # archive manager. Fedora's default file associations expect them.
+          - org.gnome.Loupe
+          - org.gnome.Papers
+          - org.gnome.Showtime
+          - org.gnome.Decibels
+          - org.gnome.TextEditor
+          - org.gnome.Calculator
+          - org.gnome.Calendar
+          - org.gnome.clocks
+          - org.gnome.Weather
+          - org.gnome.Snapshot
+          - org.gnome.FileRoller
+          - org.gnome.SimpleScan
+          # Plays nearly every video and disc format.
+          - org.videolan.VLC
+          # KDE's file manager, for people used to it on Windows shares;
+          # Files remains the default.
+          - org.kde.dolphin
+          # Password manager, for the family's passwords across devices.
+          - com.bitwarden.desktop

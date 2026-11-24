@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#
+# sv-first-login
+#
+# Purpose:
+#   Manually re-runs the per-user setup, e.g. for accounts that only log in
+#   over SSH and therefore never trigger the desktop autostart.
+
+exec /usr/libexec/shatteredvales/first-login.sh "$@"

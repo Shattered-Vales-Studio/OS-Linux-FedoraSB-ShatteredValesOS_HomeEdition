@@ -1,0 +1,8 @@
+---
+# Signing must stay last among content-changing modules so the published
+# signature policy matches what machines verify against.
+modules:
+  - type: signing
+  - type: script
+    scripts:
+      - verify-image.sh

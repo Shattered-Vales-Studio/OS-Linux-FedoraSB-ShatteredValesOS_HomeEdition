@@ -1,0 +1,8 @@
+---
+# Copies the static filesystem tree into the image. This runs first so that
+# repo definitions in /etc/yum.repos.d exist before the package step.
+modules:
+  - type: files
+    files:
+      - source: system
+        destination: /

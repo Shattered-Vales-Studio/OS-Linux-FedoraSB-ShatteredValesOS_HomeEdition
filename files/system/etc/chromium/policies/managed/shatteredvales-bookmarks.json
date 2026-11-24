@@ -1,0 +1,52 @@
+{
+  "ManagedBookmarks": [
+    {
+      "toplevel_name": "Streaming"
+    },
+    {
+      "name": "Netflix",
+      "url": "https://www.netflix.com/"
+    },
+    {
+      "name": "Disney+",
+      "url": "https://www.disneyplus.com/"
+    },
+    {
+      "name": "Prime Video",
+      "url": "https://www.primevideo.com/"
+    },
+    {
+      "name": "HBO Max",
+      "url": "https://www.hbomax.com/"
+    },
+    {
+      "name": "Hulu",
+      "url": "https://www.hulu.com/"
+    },
+    {
+      "name": "Paramount+",
+      "url": "https://www.paramountplus.com/"
+    },
+    {
+      "name": "Peacock",
+      "url": "https://www.peacocktv.com/"
+    },
+    {
+      "name": "Apple TV+",
+      "url": "https://tv.apple.com/"
+    },
+    {
+      "name": "YouTube",
+      "url": "https://www.youtube.com/"
+    },
+    {
+      "name": "YouTube TV",
+      "url": "https://tv.youtube.com/"
+    },
+    {
+      "name": "Movies Anywhere",
+      "url": "https://moviesanywhere.com/"
+    }
+  ],
+  "BookmarkBarEnabled": true
+}

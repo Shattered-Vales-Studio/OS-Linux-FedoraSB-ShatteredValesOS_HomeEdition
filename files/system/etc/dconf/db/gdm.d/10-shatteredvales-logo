@@ -1,0 +1,15 @@
+# Login screen branding. The logo key is GDM's own supported setting and is
+# shown below the user list.
+[org/gnome/login-screen]
+logo='/usr/share/pixmaps/shatteredvales-gdm-logo.png'
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+accent-color='@BRAND_GNOME_ACCENT@'
+font-name='@BRAND_FONT_FAMILY@ 11'
+clock-format='12h'
+
+[org/gnome/settings-daemon/plugins/power]
+# The login screen has its own power settings and would otherwise suspend an
+# idle computer after 15 minutes, cutting off remote help over Tailscale.
+sleep-inactive-ac-type='nothing'
