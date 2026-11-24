@@ -1,0 +1,12 @@
+[Unit]
+Description=Install the Shattered Vales OS boot menu theme
+Documentation=https://github.com/Shattered-Vales-Studio/OS-Linux-FedoraSB-ShatteredValesOS_HomeEdition
+RequiresMountsFor=/boot
+ConditionPathIsDirectory=/boot/grub2
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/shatteredvales/grub-theme.sh
+
+[Install]
+WantedBy=multi-user.target
