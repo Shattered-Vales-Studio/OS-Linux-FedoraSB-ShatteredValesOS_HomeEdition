@@ -45,6 +45,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
+# Matches the launcher file name (io.shatteredvales.FamilySetup.desktop) so
+# GNOME shows Family Setup's own icon and name for its window.
 APP_ID = "io.shatteredvales.FamilySetup"
 ACCOUNTS_NAME = "org.freedesktop.Accounts"
 ACCOUNTS_PATH = "/org/freedesktop/Accounts"
@@ -417,14 +419,30 @@ class SetupWindow(Adw.ApplicationWindow):
         return button
 
     def status(self, icon, title, text):
-        """Make a status header: large icon, title and explanation.
+        """Make a page header: large icon, title and explanation.
+
+        Built from plain widgets rather than Adw.StatusPage, which brings
+        its own scrolled window: nested in the page's scroller it was given
+        too little height, clipping the title and hiding the explanation.
+
+        Args:
+            icon: Icon name shown at 96 px.
+            title: Heading text.
+            text: Explanation under the heading; wraps as needed.
 
         Returns:
-            The Adw.StatusPage.
+            The header Gtk.Box.
         """
-        page = Adw.StatusPage(icon_name=icon, title=title, description=text)
-        page.add_css_class("compact")
-        return page
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
+                      margin_top=12, margin_bottom=12)
+        box.append(Gtk.Image(icon_name=icon, pixel_size=96))
+        heading = Gtk.Label(label=title, wrap=True, justify=Gtk.Justification.CENTER)
+        heading.add_css_class("title-1")
+        box.append(heading)
+        body = Gtk.Label(label=text, wrap=True, justify=Gtk.Justification.CENTER)
+        body.add_css_class("body")
+        box.append(body)
+        return box
 
     def toast(self, text):
         """Show a short message at the bottom of the window."""

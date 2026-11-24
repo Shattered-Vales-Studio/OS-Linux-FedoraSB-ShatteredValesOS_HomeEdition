@@ -47,7 +47,7 @@ readonly REQUIRED_PATHS=(
     /usr/share/icons/hicolor/scalable/apps/shatteredvales-update.svg
     # Family Setup, Welcome and per-person setup
     /usr/libexec/shatteredvales/family-setup
-    /usr/share/applications/shatteredvales-family-setup.desktop
+    /usr/share/applications/io.shatteredvales.FamilySetup.desktop
     /usr/share/icons/hicolor/scalable/apps/shatteredvales-family-setup.svg
     /usr/libexec/shatteredvales/first-login.sh
     /etc/xdg/autostart/shatteredvales-first-login.desktop

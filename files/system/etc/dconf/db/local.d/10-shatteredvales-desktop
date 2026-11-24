@@ -4,6 +4,12 @@
 
 [org/gnome/shell]
 enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'appindicatorsupport@rgcjonas.gmail.com', 'logomenu@aryan_k', 'just-perfection-desktop@just-perfection']
+# GNOME's own "Welcome / Take Tour" prompt is replaced by the Welcome window
+# from Family Setup. With both, GNOME's modal prompt covered ours and held
+# keyboard and mouse input until dismissed, which a first-time user would
+# not know to do. Marking it as already shown for any GNOME version keeps
+# it away; the Tour app stays in the app list.
+welcome-dialog-last-shown-version='999999'
 # A short dock of everyday apps, like a phone's home row. The RPM-provided
 # entries are checked by verify-image.sh so an upstream rename fails the
 # build; VLC is a first-boot Flatpak and the Craft apps install at first
@@ -53,6 +59,9 @@ show-activities-button=true
 menu-button-terminal='ptyxis'
 
 [org/gnome/shell/extensions/just-perfection]
+# Start on the desktop with the dock, like a phone's home screen, rather
+# than GNOME's Activities overview (0 = desktop, 1 = overview).
+startup-status=0
 # Clock position in the top bar: 0 = center, 1 = right, 2 = left.
 clock-menu-position=1
 clock-menu-position-offset=0
