@@ -30,3 +30,23 @@ modules:
         - fastfetch
         - pciutils
         - libnotify
+
+  # Full video playback. Fedora ships no H.264/HEVC decoder, so without
+  # these Firefox cannot play ordinary MP4 video on news and social sites
+  # (streaming services decode inside their own DRM module and work
+  # either way). The freeworld VA-API driver adds hardware decoding on AMD
+  # and Intel graphics, which saves battery on laptops. RPM Fusion is
+  # removed again after the build, so it never appears as a repository on
+  # family machines; the packages update with each new image.
+  - type: dnf
+    repos:
+      nonfree: rpmfusion
+      cleanup: true
+    install:
+      # RPM Fusion can trail a Fedora Mesa update by a few days; skipping a
+      # broken freeworld driver for one nightly build is better than no
+      # build at all. libavcodec-freeworld is gated in verify-image.sh.
+      skip-broken: true
+      packages:
+        - libavcodec-freeworld
+        - mesa-va-drivers-freeworld

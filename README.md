@@ -32,8 +32,15 @@ Snapdragon models are not supported yet.
   suite.
 - **Everyday apps:** photo viewer, video player (and VLC for everything
   else), music player, text editor, calculator, calendar, clocks, weather,
-  camera, document scanner, archive manager, Thunderbird for email, and
-  Bitwarden for passwords.
+  camera, document scanner, archive manager, Thunderbird for email,
+  Bitwarden for passwords, Shotwell for importing and organising photos,
+  Contacts, Maps, Disk Usage, and **Backups** (off until someone turns it
+  on, then backs up home folders to a USB drive or cloud storage).
+- **Video that just plays:** H.264/HEVC decoding and hardware video
+  acceleration on AMD and Intel graphics, so ordinary web video works in
+  Firefox, not only the streaming services.
+- **Wallpapers:** four 4K brand wallpapers (Nebula, Dawn, The Vale,
+  Circuit) in Settings > Appearance.
 - **More apps** are one click away in **Software**.
 - **Simple by design:** one app list with no folders, a short dock at the
   bottom (Firefox, Files, PhotoCraft, WordCraft, VLC, Settings, System
@@ -59,6 +66,14 @@ Each person can choose their own password the first time they sign in, or
 you can set it for them. Administrators get a red logo picture and everyone
 else a gold one, so the sign-in screen shows who is who. Open **Family
 Setup** from the app list at any time to add people later.
+
+- **Parental controls:** every everyday account in Family Setup has a
+  **Parental Controls** button, which opens GNOME's parental controls for
+  that person (which apps they may use, and whether they may install more).
+- **Games, if you want them:** Family Setup's last step offers **Steam**
+  and a **Starter Game Pack** (Solitaire, TriPeaks, Mahjongg, Mines,
+  Sudoku and Chess), each with its own switch. Both are optional and need
+  internet; if the computer is offline, open Family Setup again later.
 
 ## Shared folders on other computers
 

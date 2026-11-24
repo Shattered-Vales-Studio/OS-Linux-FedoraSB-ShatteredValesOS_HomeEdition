@@ -16,7 +16,7 @@ set -euo pipefail
 readonly REQUIRED_RPMS=(
     tailscale firefox thunderbird nano python3-gobject libadwaita openssl
     gnome-shell-extension-dash-to-dock gnome-shell-extension-appindicator
-    jq pciutils libnotify fastfetch
+    jq pciutils libnotify fastfetch libavcodec-freeworld malcontent-control
 )
 
 # Developer tooling from the studio edition that must never reach a family
