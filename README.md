@@ -36,9 +36,10 @@ Snapdragon models are not supported yet.
   Bitwarden for passwords, Shotwell for importing and organising photos,
   Contacts, Maps, Disk Usage, and **Backups** (off until someone turns it
   on, then backs up home folders to a USB drive or cloud storage).
-- **Video that just plays:** H.264/HEVC decoding and hardware video
-  acceleration on AMD and Intel graphics, so ordinary web video works in
-  Firefox, not only the streaming services.
+- **Video that just plays:** full FFmpeg (H.264/HEVC) and hardware video
+  decoding on AMD and Intel graphics come with the base image, so web video
+  works in Firefox, not only the streaming services. The release gate
+  checks they are still there in every build.
 - **Wallpapers:** four 4K brand wallpapers (Nebula, Dawn, The Vale,
   Circuit) in Settings > Appearance.
 - **More apps** are one click away in **Software**.

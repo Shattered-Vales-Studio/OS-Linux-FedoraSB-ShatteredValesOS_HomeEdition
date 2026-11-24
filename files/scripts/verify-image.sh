@@ -16,7 +16,11 @@ set -euo pipefail
 readonly REQUIRED_RPMS=(
     tailscale firefox thunderbird nano python3-gobject libadwaita openssl
     gnome-shell-extension-dash-to-dock gnome-shell-extension-appindicator
-    jq pciutils libnotify fastfetch libavcodec-freeworld malcontent-control
+    jq pciutils libnotify fastfetch malcontent-control
+    # Full video playback comes from the base image's negativo17 FFmpeg and
+    # Mesa builds; gated so a base-image change cannot silently drop
+    # H.264/HEVC in Firefox or hardware decoding.
+    libavcodec libva-intel-media-driver
 )
 
 # Developer tooling from the studio edition that must never reach a family
@@ -28,6 +32,8 @@ readonly FORBIDDEN_RPMS=(
 )
 
 readonly REQUIRED_PATHS=(
+    # AMD hardware video decoding (VA-API).
+    /usr/lib64/dri/radeonsi_drv_video.so
     # Terminal colours, system summary logo and sign-in banners.
     /usr/share/shatteredvales/ptyxis/ShatteredVales.palette
     /usr/share/shatteredvales/fastfetch/logo.txt
