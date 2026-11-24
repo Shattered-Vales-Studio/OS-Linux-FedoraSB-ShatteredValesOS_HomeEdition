@@ -8,5 +8,42 @@
     <options>zoom</options>
     <shade_type>solid</shade_type>
     <pcolor>#050505</pcolor>
+    <scolor>#050505</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Shattered Vales: Nebula</name>
+    <filename>/usr/share/backgrounds/shatteredvales/space.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/shatteredvales/space.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#050505</pcolor>
+    <scolor>#050505</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Shattered Vales: Dawn</name>
+    <filename>/usr/share/backgrounds/shatteredvales/earth.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/shatteredvales/earth.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#050505</pcolor>
+    <scolor>#050505</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Shattered Vales: The Vale</name>
+    <filename>/usr/share/backgrounds/shatteredvales/vale.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/shatteredvales/vale.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#050505</pcolor>
+    <scolor>#050505</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Shattered Vales: Circuit</name>
+    <filename>/usr/share/backgrounds/shatteredvales/circuit.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/shatteredvales/circuit.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#050505</pcolor>
+    <scolor>#050505</scolor>
   </wallpaper>
 </wallpapers>

@@ -28,12 +28,21 @@ readonly FORBIDDEN_RPMS=(
 )
 
 readonly REQUIRED_PATHS=(
+<<<<<<< HEAD
     # Terminal colours, system summary logo and sign-in banners.
     /usr/share/shatteredvales/ptyxis/ShatteredVales.palette
     /usr/share/shatteredvales/fastfetch/logo.txt
     /etc/xdg/fastfetch/config.jsonc
     /etc/issue.d/50-shatteredvales.issue
     /usr/lib/motd.d/50-shatteredvales
+=======
+    # Wallpapers offered in Settings > Appearance.
+    /usr/share/backgrounds/shatteredvales/space.jpg
+    /usr/share/backgrounds/shatteredvales/earth.jpg
+    /usr/share/backgrounds/shatteredvales/vale.jpg
+    /usr/share/backgrounds/shatteredvales/circuit.jpg
+    /usr/share/gnome-background-properties/shatteredvales.xml
+>>>>>>> origin/feature/wallpapers
     /usr/bin/artcraft-launcher
     /etc/firewalld/zones/FedoraWorkstation.xml
     /etc/shatteredvales/network-shares
