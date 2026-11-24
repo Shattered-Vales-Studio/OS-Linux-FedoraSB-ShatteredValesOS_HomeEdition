@@ -29,6 +29,12 @@ readonly FORBIDDEN_RPMS=(
 
 readonly REQUIRED_PATHS=(
     /usr/bin/artcraft-launcher
+    /usr/share/shatteredvales/grub-theme/theme.txt
+    /usr/share/shatteredvales/grub-theme/theme.cfg
+    /usr/share/shatteredvales/grub-theme/logo.png
+    /usr/share/shatteredvales/grub-theme/lato-regular-28.pf2
+    /usr/libexec/shatteredvales/grub-theme.sh
+    /usr/lib/systemd/system/shatteredvales-grub-theme.service
     /etc/firewalld/zones/FedoraWorkstation.xml
     /etc/shatteredvales/network-shares
     /usr/share/fonts/google-fonts/Cinzel
