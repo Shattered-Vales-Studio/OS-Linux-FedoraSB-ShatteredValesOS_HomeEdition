@@ -139,6 +139,19 @@ tag to roll every machine back.
 | `sv-first-login` | Re-runs per-person setup |
 | `rpm-ostree rollback` | Boots the previous version |
 
+## Keeping up with Fedora
+
+- **Updates within a release** are automatic: nightly builds start from
+  BlueBuild's base images, which pick up Fedora's updates daily, and the
+  weekly promotion moves them to `:latest`. Family computers install them
+  in the background and apply them at the next restart.
+- **New Fedora releases** (every April and October): the *fedora-release*
+  workflow checks every Monday. When Fedora N+1 is released and the base
+  images publish it, it pushes a `fedora-<N+1>` branch with the version
+  bumps and opens an issue with the pull request link and a test
+  checklist. Nothing moves to a new release without someone testing it.
+- **GitHub Actions** used by the workflows are kept current by Dependabot.
+
 ## Developing
 
 See [CLAUDE.md](CLAUDE.md) for how the image is put together and the
