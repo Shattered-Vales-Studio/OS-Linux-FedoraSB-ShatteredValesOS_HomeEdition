@@ -1,0 +1,25 @@
+# Weekly check for a new Fedora release. When Fedora N+1 is out and the
+# BlueBuild base images publish it, pushes a fedora-<N+1> branch with the
+# version bumps and opens an issue with the pull request link and the
+# hardware checklist. Nothing is merged or published automatically.
+name: fedora-release
+
+on:
+  schedule:
+    # Mondays 15:40 UTC, ahead of the Tuesday promotion.
+    - cron: "40 15 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare the next Fedora release if it is out
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/fedora-release.sh

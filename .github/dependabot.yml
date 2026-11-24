@@ -1,0 +1,14 @@
+# Keeps the GitHub Actions used by the workflows current. Pinned actions
+# otherwise go stale until something breaks (promotion once failed because
+# a pinned cosign-installer tag did not exist). Updates arrive as one weekly
+# grouped pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
