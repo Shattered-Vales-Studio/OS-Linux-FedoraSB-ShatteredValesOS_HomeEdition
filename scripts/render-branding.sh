@@ -49,7 +49,8 @@ container_cli() {
 #   Returns: non-zero on any rendering failure
 render_inside() {
     set -euo pipefail
-    dnf -y -q install ImageMagick librsvg2-tools >/dev/null
+    dnf -y -q install ImageMagick librsvg2-tools \
+        python3-numpy python3-pillow python3-scipy >/dev/null
     cd /work
     # shellcheck source=/dev/null
     source branding/brand.env
@@ -298,6 +299,12 @@ SVG
 
     cp branding/brand.env "${out}/usr/share/shatteredvales/brand.env"
     rm -rf "${tmp}"
+
+    # Alternative 4K wallpapers (space, Earth, vale, circuit) for Settings >
+    # Appearance. They are painted procedurally from the brand palette, so
+    # they live in their own generator rather than as ImageMagick steps.
+    python3 branding/wallpapers/generate.py --env branding/brand.env \
+        --out "${out}/usr/share/backgrounds/shatteredvales"
     echo "Branding rendered into ${out}"
 }
 

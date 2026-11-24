@@ -28,6 +28,12 @@ readonly FORBIDDEN_RPMS=(
 )
 
 readonly REQUIRED_PATHS=(
+    # Wallpapers offered in Settings > Appearance.
+    /usr/share/backgrounds/shatteredvales/space.jpg
+    /usr/share/backgrounds/shatteredvales/earth.jpg
+    /usr/share/backgrounds/shatteredvales/vale.jpg
+    /usr/share/backgrounds/shatteredvales/circuit.jpg
+    /usr/share/gnome-background-properties/shatteredvales.xml
     /usr/bin/artcraft-launcher
     /etc/firewalld/zones/FedoraWorkstation.xml
     /etc/shatteredvales/network-shares
