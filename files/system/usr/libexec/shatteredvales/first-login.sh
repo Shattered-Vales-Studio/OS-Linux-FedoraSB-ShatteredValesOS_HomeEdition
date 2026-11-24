@@ -230,6 +230,32 @@ open_welcome() {
     setsid -f "${FAMILY_SETUP}" --welcome >/dev/null 2>&1 || true
 }
 
+# step_terminal_palette
+#   Makes the Shattered Vales palette the default colours of the user's
+#   Ptyxis profile. Ptyxis reads custom palettes only from the user's data
+#   folder, so the palette is copied there. A profile is created when the
+#   user has never opened Ptyxis, and a palette the user already chose is
+#   left alone.
+#   Arguments: none
+#   Returns: non-zero if the palette cannot be installed or applied
+step_terminal_palette() {
+    local dir="${XDG_DATA_HOME:-${HOME}/.local/share}/org.gnome.Ptyxis/palettes"
+    local uuid path current
+    mkdir -p "${dir}"
+    cp /usr/share/shatteredvales/ptyxis/ShatteredVales.palette "${dir}/" || return 1
+    uuid="$(gsettings get org.gnome.Ptyxis default-profile-uuid | tr -d "'")" || return 1
+    if [[ -z "${uuid}" ]]; then
+        # Ptyxis profile ids are 32 hex digits, the same shape it generates.
+        uuid="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        gsettings set org.gnome.Ptyxis profile-uuids "['${uuid}']" || return 1
+        gsettings set org.gnome.Ptyxis default-profile-uuid "${uuid}" || return 1
+    fi
+    path="org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/${uuid}/"
+    current="$(gsettings get "${path}" palette | tr -d "'")" || return 1
+    [[ "${current}" == gnome ]] || return 0
+    gsettings set "${path}" palette ShatteredVales
+}
+
 # main
 #   Opens the Welcome window and runs every pending setup step, logging to
 #   the state directory.
@@ -244,6 +270,7 @@ main() {
     sync_user_icon || failed=1
     sync_share_bookmarks
     run_step remote-help-doc-v1 step_remote_help_doc || failed=1
+    run_step terminal-palette-v1 step_terminal_palette || failed=1
     # Last, because it downloads several hundred MB.
     run_step artcraft-apps-v1 step_artcraft_apps || failed=1
 

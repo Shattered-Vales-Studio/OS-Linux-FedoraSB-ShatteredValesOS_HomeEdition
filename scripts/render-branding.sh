@@ -49,7 +49,8 @@ container_cli() {
 #   Returns: non-zero on any rendering failure
 render_inside() {
     set -euo pipefail
-    dnf -y -q install ImageMagick librsvg2-tools grub2-tools-extra >/dev/null
+    dnf -y -q install ImageMagick librsvg2-tools grub2-tools-extra chafa \
+        python3-numpy python3-pillow python3-scipy >/dev/null
     cd /work
     # shellcheck source=/dev/null
     source branding/brand.env
@@ -404,8 +405,27 @@ CFG
     tile_icon "shatteredvales-update" \
         '<path d="M88 50a28 28 0 0 0-50-6"/><path d="M36 30v14h14"/><path d="M40 78a28 28 0 0 0 50 6"/><path d="M92 98V84H78"/>'
 
+    # Terminal logo for fastfetch: the gold-foil mark as 24-bit colour
+    # quadrant blocks, pre-rendered so the image needs no image libraries
+    # and every monospace font can draw it. The strokes are thickened first
+    # because the mark's fine lines vanish at 36 columns. --polite keeps
+    # chafa from adding cursor and screen control sequences that would
+    # break fastfetch's layout.
+    mkdir -p "${out}/usr/share/shatteredvales/fastfetch"
+    rsvg-convert -w 600 -h 600 "${src}/logo.svg" -o "${tmp}/logo-term.png"
+    magick "${tmp}/logo-term.png" -trim +repage -morphology Dilate Disk:3 "${tmp}/logo-term.png"
+    chafa --polite on --format symbols --colors full --symbols quad \
+        --bg "${BRAND_BG}" --size 36x18 "${tmp}/logo-term.png" \
+        > "${out}/usr/share/shatteredvales/fastfetch/logo.txt"
+
     cp branding/brand.env "${out}/usr/share/shatteredvales/brand.env"
     rm -rf "${tmp}"
+
+    # Alternative 4K wallpapers (space, Earth, vale, circuit) for Settings >
+    # Appearance. They are painted procedurally from the brand palette, so
+    # they live in their own generator rather than as ImageMagick steps.
+    python3 branding/wallpapers/generate.py --env branding/brand.env \
+        --out "${out}/usr/share/backgrounds/shatteredvales"
     echo "Branding rendered into ${out}"
 }
 

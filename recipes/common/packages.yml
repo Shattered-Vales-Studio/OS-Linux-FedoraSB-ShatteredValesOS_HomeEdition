@@ -26,5 +26,8 @@ modules:
         - libadwaita
         # Used by sv-gpu-image, sv-update and the first-login script
         - jq
+        # `fastfetch` system summary with the Shattered Vales logo
+        - fastfetch
         - pciutils
         - libnotify
+

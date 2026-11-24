@@ -64,6 +64,19 @@ PASSWORD_SET_AT_LOGIN = 1
 CALL_TIMEOUT_MS = 10 * 60 * 1000
 USERNAME_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 LARGE_TEXT = 1.25
+FLATPAK_APPS = Path("/var/lib/flatpak/app")
+STEAM = ("com.valvesoftware.Steam",)
+# Free, offline, ad-free classics. AisleRiot holds Klondike Solitaire and
+# Tri-Peaks among its card games; TriPeaks NEUE is a dedicated, friendlier
+# Tri-Peaks. GNOME Mahjongg is classic mahjong solitaire.
+STARTER_GAMES = (
+    "org.gnome.Aisleriot",
+    "io.github.mimoguz.tripeaks_neue",
+    "org.gnome.Mahjongg",
+    "org.gnome.Mines",
+    "org.gnome.Sudoku",
+    "org.gnome.Chess",
+)
 
 
 def human_accounts():
@@ -338,6 +351,18 @@ def friendly_error(error):
     if "already exists" in text.lower():
         return "There is already an account with that sign-in name."
     return f"Something went wrong: {text}"
+
+
+def installed(app_ids):
+    """Tell whether every app in a set is installed for all users.
+
+    Args:
+        app_ids: Flatpak application IDs.
+
+    Returns:
+        True when each app has a system-wide installation.
+    """
+    return all((FLATPAK_APPS / app_id).is_dir() for app_id in app_ids)
 
 
 def mark_welcome_done():
@@ -620,8 +645,96 @@ class SetupWindow(Adw.ApplicationWindow):
                         "Add an account for each person now, or come back any time: open "
                         "Family Setup from the app list."),
             group, adder,
-            self.big_button("Finish", lambda: self.nav.push(self.page_done())))
+            self.big_button("Continue", lambda: self.nav.push(self.page_games())))
         return self.page("People", "people", body)
+
+    def parental_controls(self, username):
+        """Open GNOME's Parental Controls for one account.
+
+        Args:
+            username: The everyday account to manage.
+        """
+        if self.accounts.dry_run:
+            return
+        try:
+            subprocess.Popen(["malcontent-control", f"--user={username}"])
+        except OSError as error:
+            self.toast(friendly_error(str(error)))
+
+    def page_games(self):
+        """Offers Steam and the Starter Game Pack, each optional.
+
+        Installs run through Flatpak, which polkit allows for
+        administrators and asks an administrator's password otherwise.
+        Without internet the install fails cleanly and the page can be
+        visited again later from Family Setup.
+
+        Returns:
+            The navigation page.
+        """
+        group = Adw.PreferencesGroup(
+            title="Optional games",
+            description="Both are free to install. You can add or remove games at any time "
+                        "in Software.")
+        steam = Adw.SwitchRow(title="Steam", subtitle_lines=0,
+                              subtitle="The Steam game store and launcher. Needs a Steam "
+                                       "account; many games cost money.")
+        pack = Adw.SwitchRow(title="Starter Game Pack", subtitle_lines=0,
+                             subtitle="Solitaire, TriPeaks, Mahjongg, Mines, Sudoku and Chess. "
+                                      "Free, with no accounts or ads.")
+        choices = ((steam, STEAM), (pack, STARTER_GAMES))
+        for row, apps in choices:
+            if installed(apps):
+                row.set_active(True)
+                row.set_sensitive(False)
+                row.set_subtitle("Installed")
+            group.add(row)
+        working = Gtk.Box(spacing=12, halign=Gtk.Align.CENTER, visible=False)
+        working.append(Gtk.Spinner(spinning=True))
+        working.append(Gtk.Label(label="Installing. This can take several minutes…", wrap=True))
+        problem = Gtk.Label(wrap=True, xalign=0, css_classes=["error"], visible=False)
+
+        def go_on():
+            wanted = [app for row, apps in choices
+                      if row.get_active() and row.get_sensitive() for app in apps]
+            if not wanted:
+                self.nav.push(self.page_done())
+                return
+            if self.accounts.dry_run:
+                self.nav.push(self.page_done())
+                return
+            button.set_sensitive(False)
+            problem.set_visible(False)
+            working.set_visible(True)
+            process = Gio.Subprocess.new(
+                ["flatpak", "install", "--system", "--noninteractive", "-y", "flathub", *wanted],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE)
+
+            def finished(proc, result):
+                ok, output, _err = proc.communicate_utf8_finish(result)
+                working.set_visible(False)
+                button.set_sensitive(True)
+                if ok and proc.get_successful():
+                    self.toast("Games installed. Find them in the app list.")
+                    self.nav.push(self.page_done())
+                    return
+                print(output, file=sys.stderr)
+                problem.set_label("The games could not be installed. Check that the computer is "
+                                  "connected to the internet and try again, or skip this and "
+                                  "add them later from Family Setup or Software.")
+                problem.set_visible(True)
+
+            process.communicate_utf8_async(None, None, finished)
+
+        skip = Gtk.Button(label="Skip")
+        skip.connect("clicked", lambda _b: self.nav.push(self.page_done()))
+        button = self.big_button("Continue", go_on)
+        body = self.column(
+            self.status("applications-games-symbolic", "Games",
+                        "Would you like some games on this computer? Choose either, both or "
+                        "neither."),
+            group, working, problem, button)
+        return self.page("Games", "games", body, header_end=skip)
 
     def _fill_people(self, group):
         """Shows one row per account in a group, replacing any old rows.
@@ -637,6 +750,11 @@ class SetupWindow(Adw.ApplicationWindow):
             role = "Administrator" if is_admin(username) else "Everyday account"
             row = Adw.ActionRow(title=full_name, subtitle=f"{role} • signs in as {username}")
             row.add_prefix(Gtk.Image(icon_name="avatar-default-symbolic"))
+            if role != "Administrator":
+                controls = Gtk.Button(label="Parental Controls", valign=Gtk.Align.CENTER)
+                controls.add_css_class("flat")
+                controls.connect("clicked", lambda _b, u=username: self.parental_controls(u))
+                row.add_suffix(controls)
             group.add(row)
             group._rows.append(row)
 
@@ -723,6 +841,8 @@ class SetupWindow(Adw.ApplicationWindow):
                                  "To change person, use the menu in the top-right corner."),
             ("Changing accounts later", "Open Family Setup from the app list, or Settings, "
                                         "System, Users."),
+            ("Parental controls", "Choose which apps each everyday account may use with the "
+                                  "Parental Controls button next to their name in Family Setup."),
             ("Remote help", "The guide in Documents explains how a family member can help "
                             "over the internet."),
         ):
@@ -773,7 +893,7 @@ class FamilySetupApp(Adw.Application):
         try:
             group = Adw.PreferencesGroup()
             for build in (window.page_intro, window.page_admin, window.page_people,
-                          lambda: window.page_person(group), window.page_done):
+                          lambda: window.page_person(group), window.page_games, window.page_done):
                 page = build()
                 window.nav.push(page)
                 print(f"built page: {page.get_tag()}")

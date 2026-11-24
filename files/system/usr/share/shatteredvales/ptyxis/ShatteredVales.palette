@@ -1,0 +1,26 @@
+# Shattered Vales terminal palette for Ptyxis: the website's near-black
+# surface with brand-gold yellow and cursor. Every colour except Color0
+# (black, used as a background) reaches WCAG AA or better against the
+# background #0a0a0a; most reach AAA. Installed per user by first-login.sh,
+# because Ptyxis reads custom palettes only from the user's data folder.
+[Palette]
+Name=Shattered Vales
+Background=#0a0a0a
+Foreground=#f8f8f8
+Cursor=#c5a059
+Color0=#1a1a1a
+Color1=#ea737a
+Color2=#9cc27e
+Color3=#c5a059
+Color4=#7aa7e0
+Color5=#c39ac9
+Color6=#7cc4c8
+Color7=#d6d3cc
+Color8=#8a8680
+Color9=#f0868c
+Color10=#b6d89a
+Color11=#e0cba0
+Color12=#8cbcff
+Color13=#dbb8df
+Color14=#a2dde0
+Color15=#f8f8f8

@@ -32,6 +32,16 @@ set_key() {
     fi
 }
 
+# accent_sgr
+#   Converts BRAND_ACCENT (#rrggbb) into an SGR colour sequence.
+#   Arguments: none
+#   Output: "38;2;<r>;<g>;<b>" on stdout
+#   Returns: 0 always
+accent_sgr() {
+    local hex="${BRAND_ACCENT#\#}"
+    printf '38;2;%d;%d;%d' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+}
+
 # main
 #   Rewrites the branded os-release keys.
 #   Arguments: none
@@ -46,6 +56,15 @@ main() {
     # GNOME Settings resolves LOGO as an icon name from the hicolor theme.
     set_key LOGO "shatteredvales-logo"
     set_key HOME_URL "${BRAND_URL}"
+    # Fedora's support, bug and documentation links would send people to
+    # Fedora for problems in this image's own configuration.
+    set_key SUPPORT_URL "${BRAND_URL}"
+    set_key DOCUMENTATION_URL "${BRAND_DOCS_URL}"
+    set_key BUG_REPORT_URL "${BRAND_REPO_URL}/issues"
+    set_key DEFAULT_HOSTNAME "shatteredvales"
+    # Tools such as systemd colour the OS name with this; it is the brand
+    # gold as a 24-bit SGR sequence.
+    set_key ANSI_COLOR "$(accent_sgr)"
 }
 
 main "$@"

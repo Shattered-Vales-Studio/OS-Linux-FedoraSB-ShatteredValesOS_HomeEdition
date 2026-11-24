@@ -61,6 +61,11 @@
       "Enabled": true,
       "Locked": false
     },
-    "DontCheckDefaultBrowser": true
+    "DontCheckDefaultBrowser": true,
+    "Homepage": {
+      "URL": "https://shatteredvales.studio/",
+      "StartPage": "homepage",
+      "Locked": false
+    }
   }
 }
